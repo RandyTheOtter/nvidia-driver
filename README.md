@@ -12,3 +12,9 @@ nvidia-driver/
 
 `f41.sls` - deploy fedora-41 qube
 `f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
+
+## Current tasks
+
+- [x] Fedora version
+- [ ] Debian version
+- [ ] optimus prime
