@@ -1,0 +1,17 @@
+{# Configure me before running anything #}
+
+{% set nvd_f41 = {
+  'template':{'name':'fedora-41-xfce'},
+  'standalone':{
+    'name':'fedora-41-nvidia-cuda',
+    'label':'yellow',
+    'memory':'4000',
+    'vcpus':'4',
+  },
+  'devices':['device1', 'device2', 'etc.'],
+  'paths':{
+    'nvidia_conf':'/usr/share/X11/xorg.conf.d/nvidia.conf',
+    'grub_conf':'/etc/default/grub',
+    'grub_out':'/boot/grub2/grub.cfg',
+  },
+} %}
