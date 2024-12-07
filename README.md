@@ -10,8 +10,8 @@ nvidia-driver/
 └── f41.sls
 ```
 
-`f41.sls` - deploy fedora-41 qube
-`f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
+- `f41.sls` - deploy fedora-41 qube
+- `f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
 
 ## How to use
 
