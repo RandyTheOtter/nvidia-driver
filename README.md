@@ -17,10 +17,14 @@ nvidia-driver/
 
 1. Upload `nvidia-driver` to your salt environment
 2. Review config in `default.jinja`
-3. `sudo qubesctl --show-output --targets <target_name> state.sls nvidia-driver.f41 saltenv=user` **or** `{% include 'nvidia-driver/f41.sls` %}`
+3. `sudo qubesctl --show-output --targets <target_name> state.sls nvidia-driver.f41 saltenv=user` **or** `{% include 'nvidia-driver/f41.sls' %}`
 
 ## Current tasks
 
 - [x] Fedora version
 - [ ] Debian version
 - [ ] optimus prime
+
+## Known issues
+
+- I don't use native salt package management state because it doesn't work with the new dnf. If it was fixed or you have a better workaround, make a pull request.
