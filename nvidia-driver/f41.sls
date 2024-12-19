@@ -33,6 +33,10 @@ nvidia-driver--extend-tmp:
   cmd.run:
     - name: mount -o remount,size=2G /tmp/
 
+nvidia-driver--remove-grubby-dummy:
+  cmd.run:
+    - name: dnf remove -y grubby-dummy
+
 {% set packages = [
   'akmod-nvidia',
   'xorg-x11-drv-nvidia-cuda',
@@ -44,6 +48,7 @@ nvidia-driver--install:
     - require:
       - cmd: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
+      - cmd: nvidia-driver--remove-grubby-dummy
 
 # Doesn't work because dnf has ligma. Bump me if there is a workaround.
 #nvidia-driver--install:
