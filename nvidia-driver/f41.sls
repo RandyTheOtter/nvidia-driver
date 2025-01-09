@@ -37,31 +37,15 @@ nvidia-driver--remove-grubby-dummy:
   cmd.run:
     - name: dnf remove -y grubby-dummy
 
-{% set packages = [
-  'akmod-nvidia',
-  'xorg-x11-drv-nvidia-cuda',
-  'vulkan',
-] %}
 nvidia-driver--install:
-  cmd.run:
-    - name: dnf install -y {{ ' '.join(packages) }}
+  pkg.installed:
+    - pkgs:
+      - akmod-nvidia
+      - xorg-x11-drv-nvidia-cuda
+      - vulkan
     - require:
       - cmd: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
-      - cmd: nvidia-driver--remove-grubby-dummy
-
-# Doesn't work because dnf has ligma. Bump me if there is a workaround.
-#nvidia-driver--install:
-#  pkg.installed:
-#    - pkgs:
-#      - akmod-nvidia
-#      - xorg-x11-drv-nvidia-cuda
-#      - xorg-x11-drv-nvidia-cuda-libs
-#      - vulkan
-#      - nvtop
-#    - require:
-#      - cmd: nvidia-driver--enable-repo
-#      - cmd: nvidia-driver--extend-tmp
 
 nvidia-driver--assert-install:
   loop.until_no_eval:
