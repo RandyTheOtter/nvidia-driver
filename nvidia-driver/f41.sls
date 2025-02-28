@@ -42,7 +42,7 @@ nvidia-driver--install:
     - pkgs:
       - akmod-nvidia
       - xorg-x11-drv-nvidia-cuda
-      - vulkan
+      {# - vulkan #}
     - require:
       - cmd: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
