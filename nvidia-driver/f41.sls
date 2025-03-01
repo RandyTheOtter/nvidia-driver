@@ -39,8 +39,9 @@ nvidia-driver--extend-tmp:
     - name: mount -o remount,size=2G /tmp/
 
 nvidia-driver--remove-grubby-dummy:
-  cmd.run:
-    - name: dnf remove -y grubby-dummy
+  pkg.purged:
+    - pkgs:
+      - grubby-dummy
 
 nvidia-driver--install:
   pkg.installed:
