@@ -50,8 +50,6 @@ nvidia-driver--install:
       {# comment `nvidia-open-kernel-dkms` out to go full proprietary #}
     - requires:
       - cmd: nvidia-driver--install
-
-nvidia-driver--assert-install:
   loop.until_no_eval:
     - name: cmd.run
     - expected: 'nvidia'
