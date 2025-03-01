@@ -58,7 +58,7 @@ nvidia-driver--assert-install:
     - period: 20
     - timeout: 600
     - args:
-      - modinfo -F name nvidia
+      - modinfo -F name nvidia-current
     - require:
       - pkg: nvidia-driver--install
 
