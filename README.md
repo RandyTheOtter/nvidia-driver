@@ -3,15 +3,10 @@ Salt formulas to deploy hardware-accelerated qubes.
 
 ## Contents
 
-```
-nvidia-driver/                                                                  
-├── default.jinja                                                                    
-├── f41-disable-nouveau.sls                                                          
-└── f41.sls
-```
-
-- `f41.sls` - deploy fedora-41 qube
-- `f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
+- `nvidia-driver/`:
+  - `f41.sls` - deploy fedora-41 qube
+  - `f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
+  - `d12.sls` - deploy debian-12 qube
 
 ## How to use
 
@@ -22,9 +17,5 @@ nvidia-driver/
 ## Current tasks
 
 - [x] Fedora version
-- [ ] Debian version
+- [x] Debian version
 - [ ] optimus prime
-
-## Known issues
-
-- I don't use native salt package management state because it doesn't work with the new dnf. If it was fixed or you have a better workaround, make a pull request.
