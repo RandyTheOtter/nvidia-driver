@@ -26,8 +26,13 @@ nvidia-driver--create-qube:
 {% elif grains['id'] == nvd_f41['standalone']['name'] %}
 
 nvidia-driver--enable-repo:
-  cmd.run:
-    - name: dnf config-manager setopt rpmfusion-{free,nonfree}{,-updates}.enabled=1
+  pkgrepo.managed:
+    - names: 
+      - rpmfusion-free
+      - rpmfusion-nonfree
+      - rpmfusion-free-updates
+      - rpmfusion-nonfree-updates
+    - enabled: true
 
 nvidia-driver--extend-tmp:
   cmd.run:
@@ -44,7 +49,7 @@ nvidia-driver--install:
       - xorg-x11-drv-nvidia-cuda
       {# - vulkan #}
     - require:
-      - cmd: nvidia-driver--enable-repo
+      - pkgrepo: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
 
 nvidia-driver--assert-install:
