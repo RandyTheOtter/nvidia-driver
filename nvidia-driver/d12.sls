@@ -30,7 +30,6 @@ nvidia-driver--create-qube:
 {# Configure the repository #}
 nvidia-driver--enable-repo:
   pkgrepo.managed:
-    - humanname: deb-non-free
     - name: deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
     - file: /etc/apt/sources.list
 
