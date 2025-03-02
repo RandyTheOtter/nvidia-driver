@@ -26,13 +26,8 @@ nvidia-driver--create-qube:
 {% elif grains['id'] == nvd_f41['standalone']['name'] %}
 
 nvidia-driver--enable-repo:
-  pkgrepo.managed:
-    - names: 
-      - rpmfusion-free
-      - rpmfusion-nonfree
-      - rpmfusion-free-updates
-      - rpmfusion-nonfree-updates
-    - enabled: true
+  cmd.run:
+    - name: dnf config-manager setopt rpmfusion-{free,nonfree}{,-updates}.enabled=1
 
 nvidia-driver--extend-tmp:
   cmd.run:
@@ -52,8 +47,6 @@ nvidia-driver--install:
     - require:
       - pkgrepo: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
-
-nvidia-driver--assert-install:
   loop.until_no_eval:
     - name: cmd.run
     - expected: 'nvidia'
@@ -68,6 +61,6 @@ nvidia-driver--remove-conf:
   file.absent:
     - name: {{ nvd_f41['paths']['nvidia_conf'] }}
     - require:
-      - loop: nvidia-driver--assert-install
+      - loop: nvidia-driver--install
 
 {% endif %}
