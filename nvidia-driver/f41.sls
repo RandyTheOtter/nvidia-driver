@@ -34,8 +34,9 @@ nvidia-driver--extend-tmp:
     - name: mount -o remount,size=2G /tmp/
 
 nvidia-driver--remove-grubby-dummy:
-  cmd.run:
-    - name: dnf remove -y grubby-dummy
+  pkg.purged:
+    - pkgs:
+      - grubby-dummy
 
 nvidia-driver--install:
   pkg.installed:
@@ -44,10 +45,8 @@ nvidia-driver--install:
       - xorg-x11-drv-nvidia-cuda
       {# - vulkan #}
     - require:
-      - cmd: nvidia-driver--enable-repo
+      - pkgrepo: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
-
-nvidia-driver--assert-install:
   loop.until_no_eval:
     - name: cmd.run
     - expected: 'nvidia'
@@ -62,6 +61,6 @@ nvidia-driver--remove-conf:
   file.absent:
     - name: {{ nvd_f41['paths']['nvidia_conf'] }}
     - require:
-      - loop: nvidia-driver--assert-install
+      - loop: nvidia-driver--install
 
 {% endif %}

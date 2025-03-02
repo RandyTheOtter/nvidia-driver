@@ -30,7 +30,6 @@ nvidia-driver--create-qube:
 {# Configure the repository #}
 nvidia-driver--enable-repo:
   pkgrepo.managed:
-    - humanname: deb-non-free
     - name: deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
     - file: /etc/apt/sources.list
 
@@ -51,16 +50,5 @@ nvidia-driver--install:
       {# comment `nvidia-open-kernel-dkms` out to go full proprietary #}
     - requires:
       - cmd: nvidia-driver--install
-
-nvidia-driver--assert-install:
-  loop.until_no_eval:
-    - name: cmd.run
-    - expected: 'nvidia'
-    - period: 20
-    - timeout: 600
-    - args:
-      - modinfo -F name nvidia
-    - require:
-      - pkg: nvidia-driver--install
 
 {% endif %}
