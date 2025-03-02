@@ -36,7 +36,7 @@ nvidia-driver--enable-repo:
 {# Install driver #}
 nvidia-driver--install:
   cmd.run:
-    - name: apt update -y && apt upgrade -y
+    - name: apt-get update -y && apt-get upgrade -y
     - requires:
       - pkgrepo: nvidia-driver--enable-repo
   pkg.installed:
