@@ -50,14 +50,5 @@ nvidia-driver--install:
       {# comment `nvidia-open-kernel-dkms` out to go full proprietary #}
     - requires:
       - cmd: nvidia-driver--install
-  loop.until_no_eval:
-    - name: cmd.run
-    - expected: 'nvidia'
-    - period: 20
-    - timeout: 600
-    - args:
-      - modinfo -F name nvidia-current
-    - require:
-      - pkg: nvidia-driver--install
 
 {% endif %}
