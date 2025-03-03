@@ -45,7 +45,7 @@ nvidia-driver--install:
       - xorg-x11-drv-nvidia-cuda
       {# - vulkan #}
     - require:
-      - pkgrepo: nvidia-driver--enable-repo
+      - cmd: nvidia-driver--enable-repo
       - cmd: nvidia-driver--extend-tmp
   loop.until_no_eval:
     - name: cmd.run
