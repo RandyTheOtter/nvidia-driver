@@ -1,5 +1,5 @@
 # nvidia-driver
-Salt formulas to deploy hardware-accelerated qubes.
+Salt formulas to deploy NVIDIA hardware-accelerated qubes with cuda support
 
 ## Contents
 
