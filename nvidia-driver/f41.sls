@@ -55,7 +55,7 @@ nvidia-driver--install:
     - args:
       - modinfo -F name nvidia
     - require:
-      - cmd: nvidia-driver--install
+      - pkg: nvidia-driver--install
 
 nvidia-driver--remove-conf:
   file.absent:
