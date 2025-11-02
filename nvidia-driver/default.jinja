@@ -1,5 +1,9 @@
 {# Configure me before running anything #}
 
+{% set script = {
+  'nvrun':'salt://nvidia-driver/script/nvrun',
+} %}
+
 {% set nvd_f41 = {
   'template':{'name':'fedora-41-xfce'},
   'standalone':{
@@ -37,5 +41,4 @@
     'vcpus':'8',
   },
   'devices':['01:00.0','01:00.1'],
-  'paths':{'nvrun':'salt://nvidia-driver/d13m/nvrun'},
 } %}
