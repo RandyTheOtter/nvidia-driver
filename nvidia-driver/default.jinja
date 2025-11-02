@@ -26,3 +26,16 @@
   },
   'devices':['device1', 'device2', 'etc.'],
 } %}
+
+{% set nvd_d13m = {
+  'template':{'name':'debian-13-minimal-hvm'},
+  'template-orig':{'name':'debian-13-minimal'},
+  'standalone':{
+    'name':'debian-13-minimal-cuda',
+    'label':'yellow',
+    'memory':'8000',
+    'vcpus':'8',
+  },
+  'devices':['01:00.0','01:00.1'],
+  'paths':{'nvrun':'salt://nvidia-driver/d13m/nvrun'},
+} %}
