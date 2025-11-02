@@ -31,6 +31,9 @@ These states also support providing your own variables (as opposed to the ones i
 - [x] debian 13
 - [ ] fedora 42
 
+far future:
+- [ ] rpm repository
+
 ## Mirrors
 
 - https://github.com/RandyTheOtter/nvidia-driver
