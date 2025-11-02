@@ -23,7 +23,7 @@ Salt formulas for deployment of NVIDIA hardware-accelerated qubes with cuda supp
   - Directly: `sudo qubesctl --show-output --targets <target_name> state.sls nvidia-driver.f41 saltenv=user`
   - In another formula `{% include 'nvidia-driver/f41.sls' %}`
 
-These states also support providing your own variables (as opposed to the ones in `default.jinja`. If jinja sees appropriately named variable in the environment it won't import the same variable from `default.jinja`.
+These states also support providing your own variables (as opposed to the ones in `default.jinja`). If jinja sees appropriately named variable in the context it won't import the same variable from `default.jinja`.
 
 ## Current tasks
 
