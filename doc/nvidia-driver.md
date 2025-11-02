@@ -292,6 +292,48 @@ nvidia-driver.disable-nouveau--grub-mkconfig:
 ```
 Make sure to change the paths if you're not running fedora 41.
 
+## 7. Install prime script
+
+[Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage hybrid graphics. For example, to offload render tasks to a powerful GPU despite it not having the monitor connected to it directly. Good real-world example of this is a gaming laptop. They generally have built-in displays connected directly to the CPU, but use Prime in order to render things like videogames effectively. NVIDIA implementation of Prime is called Optimus.
+
+"Configuration" of Optimus Prime is extremely simple. Everything you need to offload rendering tasks to your GPU after installing the drivers is to set two environment variables.
+
+Still, there's a little caveat: we generally don't want to offload *everything* to the GPU, therefore we can't just set the variables globally. In this case I'm using a simple bash script to execute commands in a correct environment:
+
+```bash
+#!/usr/bin/env bash
+
+set -o errexit
+set -o errtrace
+
+(
+  export __NV_PRIME_RENDER_OFFLOAD=1
+  export __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+  $@
+)
+```
+
+This script runs all arguments given to it in a subshell (`()`) with exported environment variables. This way the program is accelerated, but the environment doesn't persist when you get the prompt back.
+
+To install it, I use the following state:
+```
+nvidia-driver--prime:
+  file.managed:
+    - name: /home/user/.local/bin/nvrun
+    - source: {{ script['nvrun'] }}
+    - user: user
+    - group: user
+    - mode: 700
+    - makedirs: True
+```
+
+It saves the script to `/home/user/.local/bin/nvrun`. This location is special since it is examined as part of the $PATH. Executable files stored there can be ran just as any other command on your system, without specifying the path to it.
+
+### Confirm that prime is working correctly
+
+Good way to confirm that our prime script is working correctly is to execute `glxinfo -B` (part of mesa-utils) and check it's output. When ran by itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL renderer string`. If your prime setup works correctly, running `nvrun glxinfo -B` results in your nvidia card showing up in the aforementioned field.
+
 # Downloads
 ## Current version
 
@@ -299,3 +341,16 @@ Make sure to change the paths if you're not running fedora 41.
 - [codeberg](https://codeberg.org/otter2/nvidia-driver)
 
 Contributions, improvements and fixes are welcome! I call it GPL-3 if you need that for some reason.
+
+# See also / References
+
+- [Nvidia Graphics Drivers - Debian Wiki](https://wiki.debian.org/NvidiaGraphicsDrivers)
+- [Howto/NVIDIA - RPM Fusion](https://rpmfusion.org/Howto/NVIDIA?highlight=%28%5CbCategoryHowto%5Cb%29)
+- [Mesa - Debian Wiki](https://wiki.debian.org/Mesa)
+- [Nvidia Optimus - Debian Wiki](https://wiki.debian.org/NVIDIA%20Optimus)
+- [PRIME - Arch Linux Wiki](https://wiki.archlinux.org/title/PRIME)
+- [Minimal Templates - QubesOS Documentation](https://doc.qubes-os.org/en/latest/user/templates/minimal-templates.html)
+- [Salt Module Index](https://docs.saltproject.io/en/latest/py-modindex.html)
+- [Jinja Documentation](https://jinja.palletsprojects.com/en/stable/templates/)
+- [Understanding Jinja (Salt Documentation)](https://docs.saltproject.io/en/latest/topics/jinja/index.html)
+- Countless posts on the [QubesOS forum](https://forum.qubes-os.org)
