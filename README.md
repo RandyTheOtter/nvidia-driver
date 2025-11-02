@@ -1,5 +1,6 @@
 # nvidia-driver
-Salt formulas to deploy NVIDIA hardware-accelerated qubes with cuda support
+
+Salt formulas for deployment of NVIDIA hardware-accelerated qubes with cuda support
 
 ## Contents
 
@@ -19,6 +20,11 @@ Salt formulas to deploy NVIDIA hardware-accelerated qubes with cuda support
 
 ## Current tasks
 
-- [x] Fedora version
-- [x] Debian version
-- [ ] optimus prime
+- [x] optimus prime
+- [x] debian 13
+- [ ] fedora 42
+
+## Mirrors
+
+- https://github.com/RandyTheOtter/nvidia-driver
+- https://codeberg.org/otter2/nvidia-driver
