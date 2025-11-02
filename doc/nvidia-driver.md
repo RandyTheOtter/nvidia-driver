@@ -125,7 +125,7 @@ Jinja behavior differs depending on what delimiter is used. Code in double brack
 
 ## 1.5 Interlude: what's next?
 
-Now, when we have a qube at the ready (you can check it by applying the state), how do we install drivers? I want to discuss what's going on next, because at the moment of writing (November 2025) driver installation processes for fedora 41 and debian 12 are different.
+Now, when we have a qube at the ready (you can check it by applying the state), how do we install drivers? I want to discuss what's going on next, because at the moment of writing (November 2025) driver installation processes for fedora 41 and debian are different.
 
 [details="How do I apply a state?"]
 To apply a formula, put your state into in your salt environment folder together with jinja file and run
@@ -328,11 +328,11 @@ nvidia-driver--prime:
     - makedirs: True
 ```
 
-It saves the script to `/home/user/.local/bin/nvrun`. This location is special since it is examined as part of the $PATH. Executable files stored there can be ran just as any other command on your system, without specifying the path to it.
+It saves the script to `/home/user/.local/bin/nvrun`. This location is special since it is examined as a part of the $PATH. Executable files stored there can be ran just as any other command on your system, without specifying the path to it.
 
 ### Confirm that prime is working correctly
 
-Good way to confirm that our prime script is working correctly is to execute `glxinfo -B` (part of mesa-utils) and check it's output. When ran by itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL renderer string`. If your prime setup works correctly, running `nvrun glxinfo -B` results in your nvidia card showing up in the aforementioned field.
+Good way to confirm that our prime script is working correctly is to execute `glxinfo -B` (part of the `mesa-utils`) and check it's output. When ran by itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL renderer string`. If your prime setup works correctly, running `nvrun glxinfo -B` results in your nvidia card showing up in the aforementioned field.
 
 # Downloads
 ## Current version
