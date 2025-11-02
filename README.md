@@ -30,6 +30,7 @@ These states also support providing your own variables (as opposed to the ones i
 - [x] optimus prime
 - [x] debian 13
 - [ ] fedora 42
+- [ ] generalize the installation of drivers (pkg.installed and pkgrepo.managed)
 
 far future:
 - [ ] rpm repository
