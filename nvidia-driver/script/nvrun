@@ -3,10 +3,10 @@
 # prime-accelerated environment. The subshell is used to avoid
 # modification of the parent environment.
 
-set -o errexit
-set -o errtrace
-
 (
+  set -o errexit
+  set -o errtrace
+
   export __NV_PRIME_RENDER_OFFLOAD=1
   export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
