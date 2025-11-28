@@ -85,7 +85,7 @@ nvidia-driver--prepare-template:
   cmd.run:
     - name: grub-install /dev/xvda
     - requires:
-      - pkg: nvidia-driver--enable-network
+      - pkg: nvidia-driver--prepare-template
 
 {% endif %}
 ```
