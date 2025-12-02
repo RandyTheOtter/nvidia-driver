@@ -1,10 +1,16 @@
 {# Get a full desktop on a standalone qube with installed drivers #}
 
+{% if qube is not defined %}
+{% set qube = {
+  'name':'debian-13-cuda',
+} %}
+{% endif %}
+
 {% if grains['id'] == 'dom0' %}
 
 desktop--enable-debug:
   qvm.prefs:
-    - name: debian-13-cuda
+    - name: {{ qube['name'] }}
     - debug: True
     - virt_mode: hvm
 
