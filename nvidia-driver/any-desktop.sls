@@ -1,6 +1,4 @@
-{#
-  Get a full desktop on a standalone qube with installed drivers.
-#}
+{# Get a full desktop on a standalone qube with installed drivers #}
 
 {% if grains['id'] == 'dom0' %}
 
@@ -12,16 +10,15 @@ desktop--enable-debug:
 
 {% elif grains['id'] != 'dom0' %}
 
-desktop--purge:
-  pkg.purged:
-    - pkgs:
-      - qubes-gui-agent
+desktop--qubes-gui-agent:
+  cmd.run:
+    - name: systemctl disable qubes-gui-agent
 
 desktop--set-graphical-target:
   cmd.run:
     - name: systemctl set-default graphical.target
     - requires:
-      - pkg: desktop--purge
+      - cmd: desktop--qubes-gui-agent
 
 desktop--enable-autologin:
   file.replace:
