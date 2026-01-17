@@ -1,220 +1,245 @@
 
-This little article aims to explore and give a practical example of leveraging SaltStack to achieve the same goal as [NVIDIA GPU passthrough into Linux HVMs for CUDA applications](https://forum.qubes-os.org/t/nvidia-gpu-passthrough-into-linux-hvms-for-cuda-applications/9515/1). Salt is a management engine that simplifies configuration, and QubesOS has its own flavour. Want to see some?
+This article aims to explore and give a practical example of leveraging 
+SaltStack to automate [NVIDIA GPU passthrough into Linux HVMs for CUDA applications - Qubes OS forum](https://forum.qubes-os.org/t/nvidia-gpu-passthrough-into
+1.linux-hvms-for-cuda-applications/9515/1). Current iteration of the state have 
+grown into a canonical [salt formula](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html), thus the article also serves as a thorough 
+documentation to it.
 
-This guide assumes that you're done fiddling with your IOMMU groups and have modified grub parameters to allow passthrough.
+This guide assumes that you're done fiddling with your IOMMU groups and have 
+modified grub parameters to allow passthrough.
 
-In addition to that, if you haven't set up salt environment yet, complete step 1.1 as described in [this guide](https://forum.qubes-os.org/t/qubes-salt-beginners-guide/20126#p-90611-h-11-creating-personal-state-configuration-directories-3) to get ready.
+In addition to that, if you haven't set up salt environment yet, complete step 
+1.1 as described in [this guide](https://forum.qubes-os.org/t/qubes-salt-
+beginners-guide/20126#p-90611-h-11-creating-personal-state-configuration-
+directories-3) to get ready.
 
 # The basics
 
-Before we even start doing anything, let's discuss the basics. You probably already know that salt configurations are stored in `/srv/user_salt/`. Here's how it may look:
+This section describes salt to the readers that only have slight familiarity 
+with salt.
+
+You probably already know that salt configurations are stored in `/srv/`. 
+Here's how it may look:
+```
+├── user_formulas
+│   └── nvidia_driver
+│       └── nvidia_driver
+│           ├── create.sls
+│           ├── full_desktop.sls
+│           ├── init.sls
+│           ├── nvrun
+│           ├── prime.sls
+│           ├── revert_desktop.sls
+│           └── zero_swap.sls
+├── user_pillar
+│   ├── custom.sls
+│   └── top.sls
+└── user_salt
+    ├── test.sls
+    └── top.sls
+```
+
+Let's start with the obvious. `top.sls` inside `user_salt` is a [**top file**](https://docs.saltproject.io/en/latest/ref/states/top.html#the-top-file). It 
+describes **high state**, which is really just a combination of salt states. 
+`test.sls` is a **state file**. It contains instructions that describe 
+requested configuration to the configuration management engine. Engine applies 
+these instructions using **state modules**. State module is a piece of code that 
+has pretty specific functionality. For example, state module [`pkgrepo`](https://docs.saltproject.io/en/latest/ref/states/all/salt.states.pkgrepo.html#module-salt.states.pkgrepo)
+handles repositories of package managers like `apt` and `dnf`.
+
+> One thing to note here is that state module isn't the only kind of module. 
+> There are [a lot](https://docs.saltproject.io/en/latest/py-modindex.html) of 
+> them, and they can do various things, but here we only need the state kind.
+
+`top.sls` inside `user_pillar` is a **pillar top file**. It is similar to a 
+salt top file, but instead of describing which states must be applied to 
+what minions, it describes which **pillars** are available to the minions.
+Pillar is essentially a form of data storage that might contain configuration 
+variables, secrets, or any other data.
+
+People famimilar with jinja might be wondering what is the difference between 
+storing data in jinja compared to a pillar. The answer is simple - jinja 
+must be `include`d or otherwise imported to become available. Pillar data is 
+always available no matter what state is being applied, and allows centralized 
+declarative control over which minions have access to what data using tops and 
+jinja logic in tops and pillars. As with many other salt features, there are 
+pillar-related salt calls. For example, you can inspect all data available to 
+a minion using `qubesctl --show-output --target $MINION pillar.items` or 
+use `qubesctl --show-output --target $MINION pillar.get $ITEM` to get just one 
+item.
+
+[**Formula**](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html) is nothing more than a state. The main difference between 
+formulas and conventional states is that formulas are often designed to be 
+self-sufficient and do a specific task with minimal configuration requred.
+Think of them kind of like python modules or vim plugins - just a piece of 
+code you can include into your environment. You totally can edit their logic or 
+write your own version to solve the same problem. 
+
+`nvidia-driver` formula is stored as a directory. This is an alternative way to 
+store state for situations when you want to keep multiple files (including 
+other states) nicely organized. When a state directory is referenced, salt 
+evaluates `init.sls` state file inside. State files may or may not be included 
+from `init.sls` or other state files.
+
+Instructions in a state file come as [state declarations](https://docs.saltproject.io/en/latest/topics/tutorials/states_pt1.html#create-an-sls-file). Each state 
+declaration invokes a single state module. States declarations behave like 
+commands or functions and methods of a programming language. At the same time, 
+salt formulas are distinct from conventional programming languages in their 
+order of execution. Unless you clearly define the order using arguments like 
+`require`, `require_in`, and `order`, you should not expect states to execute 
+in any particular sequence.
+
+In addition to state declarations, you notice jinja instructions. [Jinja](https://palletsprojects.com/projects/jinja/) 
+is a templating engine. What it means is that it helps you to generalize your 
+state files by adding variables, conditions and other cool features. You can 
+easily recognize jinja by fancy brackets: `{{ }}`, `{% %}`, `{# #}`.
+
+Jinja behavior differs depending on what delimiter is used. Code in double 
+brackets (called expression) tells the parser to "print" the resulting value 
+into state file before the show starts. Statements (`{% %}`) do logic. 
+`{# #}` is a comment.
+
+Syntax itself is very similar to python, see [jinja documentation](https://jinja.palletsprojects.com/en/stable/templates/) and [understanding jinja (salt documentation)](https://docs.saltproject.io/en/latest/topics/jinja/index.html).
+
+# The Solution
+
+This section documents current implementation of `nvidia_driver` formula, its 
+configuration, and use.
+
+At the moment of writing (2026-01), the formula is tested on debian-13-xfce 
+and fedora-42-xfce templates.
+
+It is expected to work on minimal templates as well, provided that the user 
+configures such a template to work with distribution-provided (as opposed to 
+QubesOS-provided) kernel (see [minimal template documentation](https://doc.qubes-os.org/en/latest/user/templates/minimal-templates.html#distro-specific-notes)).
+
+It is also expected to work on debian-12 and fedora-41 with little to no issues.
+
+Distributions other than debian and fedora are not expected to work and 
+their configuration is prevented by jinja.
+
+## Overview
+
 ```
 .
-├── nvidia-driver
-│   ├── f41-disable-nouveau.sls
-│   ├── f41.sls
-│   └── default.jinja
-├── test.sls
-└── top.sls
+├── nvidia_driver
+│   └── nvidia_driver
+│       ├── create.sls          # Create template
+│       ├── init.sls            # Install drivers
+│       ├── nvrun               # Run a program in prime environment
+│       ├── prime.sls           # Install prime environment script (nvrun)
+│       └── zero_swap.sls       # Set swapiness to 0
+└── pillar.example              # All available configuration parameters
 ```
 
-Let's start with the obvious. `top.sls` is a top file. It describes high state, which is really just a combination of conventional salt formulas. Stray piece of salt configuration can be referred to as `formula`, although I've seen this term used to refer to different things. `test.sls` is a state file. It contains a configuration written in yaml. `nvidia-driver` is also a state, although it is a directory. This is an alternative way to store state for situations when you want to have multiple state (or not only state) files. When a state directory is referenced, salt evaluates `init.sls` state file inside. State files may or may not be included from `init.sls` or other state files.
-> Since in this case different formulas are used depending on distribution, it doesn't make much sense to have `init.sls`. In this configuration, you can't just call for `nvidia-driver`, and must specify distribution too: `nvidia-driver.f41`
+I leave the installation overwiev from the previous version here just in case it
+will be useful for somebody:
 
-Yaml configuration consists of states. In this context, state refers to a module - piece of code that most often does a pretty specific thing. In a configuration, states behave like commands or functions and methods of a programming language. At the same time, salt formulas are distinct from conventional programming languages in their order of execution. Unless you clearly define the order using arguments like `require`, `require_in`, and `order`, you should not expect states to execute in any particular sequence.
-> One thing to note here is that not all modules *are* state modules. There are [a lot](https://docs.saltproject.io/en/latest/py-modindex.html) of them, and they can do various things, but here we only need the state kind.
+| #   | fedora 41                                                                                | debian 12                        | minimal debian 13                |
+| :-: | :--------------------------------------------------------------------------------------- | :------------------------------- | :------------------------------- |
+| 0.  | -                                                                                        | -                                | Prepare hvm template             |
+| 1.  | Prepare standalone                                                                       | Prepare standalone               | Prepare standalone               |
+| 2.  | Enable rpmfusion repositories                                                            | Add repository components        | Add repository components        |
+| 3.  | **optional** : Grow `/tmp/` if 1G isn't enough for the driver build process              | -                                | -                                |
+| 4.  | Install drivers & wait for build                                                         | Update, upgrade, install drivers | Update, upgrade, install drivers |
+| 5.  | Delete X config                                                                          | -                                | -                                |
+| 6.  | **optional** : Disable nouveau, if nvidia driver isn't used after installation.          | -                                | -                                |
+| 7.  | **optional** : Install a script for running programs in a prime-accelerated environment  | same                             | same                             |
 
-In addition to state files, you notice `default.jinja`. [Jinja](https://palletsprojects.com/projects/jinja/) is a templating engine. What it means is that it helps you to generalize your state files by adding variables, conditions and other cool features. You can easily recognize jinja by fancy brackets: `{{ }}`, `{% %}`, `{# #}`. This file in particular stores variable definitions and is used for configuration of the whole state tree (directory `nvidia-folder`).
+## `nvidia_driver` (`nvidia_driver/nvidia_driver/init.sls`)
 
-# Writing salt configuration
-## 1. Create a standalone
+This state configures package manager repositories and installs necessary 
+packages. Jinja is used to base configuration on the distribution. If you want 
+similar features in your project - `qubesctl grains.items` lists grains of a 
+minion.
 
-First, let's write a state to describe how vm shall be created:
+Just as in previous versions, fedora installation is problematic - dnf doesn't 
+work well with `pkgrepo.managed` and the conflict with grubby-dummy
+is still present.
+
+[Folded block scalar](https://yaml.org/spec/1.2.2/#65-line-folding) (`>`) is used to improve readability of long values. 
+It replaces newlines with whitespaces and trims trailing whitespaces. Be 
+careful if you want to use it, it uses indentation to tell when block ends.
+
+`require_in` parameters are used to dynamically add requirement to the 
+installation state depending on what repository handling mechanism is used.
+
+Installation state itself includes a lot of jinja to cram three package list 
+variants and additional states required by fedora under a single ID. Package 
+list provided by pillar is prioritized over most likely package configurations 
+based on the distribution.
+
+Jinja is also used to avoid touching minions and distributions this formula 
+isn't designed for.
+
+It doesn't check for specific distribution version - metapackages are used
+in hope that their names won't change - if specific package or older version is 
+needed, the following pillar data will override the defauls:
 
 ```yaml
-nvidia-driver--create-qube:
-  qvm.vm:
-    - name: {{ nvd_f41['standalone']['name'] }}
-    - present:
-      - template: {{ nvd_f41['template']['name'] }}
-      - label: {{ nvd_f41['standalone']['label'] }}
-      - flags:
-        - standalone
-    - prefs:
-      - vcpus: {{ nvd_f41['standalone']['vcpus'] }}
-      - memory: {{ nvd_f41['standalone']['memory'] }}
-      - maxmem: 0
-      - pcidevs: {{ nvd_f41['devices'] }}
-      - virt_mode: hvm
-      - kernel:
-    - features:
-      - set:
-        - menu-items: qubes-run-terminal.desktop
+nvidia_driver:
+  packages:
+    - package1
+    - package1
 ```
 
-Here, I use qubes-specific `qvm.vm` state module (which is a wrapper around other modules, like `prefs`, `features`, [etc](https://github.com/QubesOS/qubes-mgmt-salt-dom0-qvm?tab=readme-ov-file#qvm-vm).). Almost all values and keys here are the same as you can set and get using `qvm-prefs` and `qvm-features`. For nvidia drivers to work, kernel must be provided by the qube - that's why the field is empty. Similarly, to pass GPU we need to set virtualization mode to `hvm` and `maxmem` to 0 (it disables memory balancing).
+All pillar data for this formula is stored in a single dictionary to prevent 
+namespace conflicts.
 
-`nvidia-driver--create-qube` is just a label. As long as you don't cross the syntax writing it, it should be fine. Aside from referencing, plenty of modules can use it to simplify the syntax, and some need it to decide what to do, but you can look it up later if you want.
-
-[details="Preparing minimal qubes"]
-As the name implies, minimal qubes don't contain that much of anything. Because of that, preparing a minimal template for creating an accelerated standalone is more involved.
-
-Firstly, minimal template doesn't contain a kernel (it only uses the copy of kernel provided by QubesOS). This means it can't run in HVM mode with "provided by qube" setting.
-
-Secondly, minimal templates lack the qubes networking agent. This results in a standalone created from such a template being unable to access the internet without additional configuration.
-
-To solve these problems, I use a separate state (`template.sls`) to create an hvm-capable minimal template:
-```
-{% if grains['id'] == 'dom0' %}
-
-nvidia-driver--create-template:
-  qvm.clone:
-    - name: {{ nvd_d13m['template']['name'] }}
-    - source: {{ nvd_d13m['template-orig']['name'] }}
-
-{% elif grains['id'] == nvd_d13m['template']['name'] %}
-
-nvidia-driver--prepare-template:
-  pkg.installed:
-    - names:
-      - qubes-core-agent-networking
-      - linux-image-amd64
-      - linux-headers-amd64
-      - grub2
-      - qubes-kernel-vm-support
+[details="init.sls"]
+```yaml
+{% if grains['id'] != 'dom0' %}
+{% if grains['os'] == 'Fedora' %}
+{{ grains['id'] }}-nvidia-driver--prepare:
   cmd.run:
-    - name: grub-install /dev/xvda
-    - requires:
-      - pkg: nvidia-driver--prepare-template
-
-{% endif %}
-```
-
-For more information, see [minimal templates documentation](https://doc.qubes-os.org/en/latest/user/templates/minimal-templates.html)
-[/details]
-
-Now, to the jinja statements. Here, they provide values for keys like label, template, name, etc. Some of them are done this way (as opposed to writing a value by hand) because the value is repeated in the state file multiple times, others are to simplify the process of configuration. In this state file jinja variable is imported using the following snippet:
-```jinja
-{% if nvd_f41 is not defined %}
-{% from 'nvidia-driver/default.jinja' import nvd_f41 %}
-{% endif %}
-```
-Jinja is very similar in its syntax to python. In this case variable from `default.jinja` gets imported only if it is not declared in the current context. It allows us to both call this formula as is (without any jinja context) and include it in other formulas (potentially with custom definition of `nvd_f41`). Note that you need to specify state directory when importing, and use actual path instead of dot notation.
-
-Upon inspection of `map.jinja`, what we see is:
-```python
-{% set nvd_f41 = {
-  'template':{'name':'fedora-41-xfce'},
-  'standalone':{
-    'name':'fedora-41-nvidia-cuda',
-    'label':'yellow',
-    'memory':'4000',
-    'vcpus':'4',
-  },
-  'devices':['01:00.0','01:00.1'],
-  'paths':{
-    'nvidia_conf':'usr/share/X11/xorg.conf.d/nvidia.conf',
-    'grub_conf':'/etc/default/grub',
-    'grub_out':'/boot/grub2/grub.cfg',
-  },
-} %}
-```
-Here, I declare dictionary `nvd_f41`. It contains sub-dictionaries for template parameters, standalone qube parameters, list of pci devices to pass through, and another dictionary for paths. Since we need to pass all devices in the list to new qube, in the state file I reference whole list.
-
-Jinja behavior differs depending on what delimiter is used. Code in double brackets (called expression) tells the parser to "print" the resulting value into state file before the show starts. Statements (`{% %}`) do logic. `{# #}` is a comment.
-
-## 1.5 Interlude: what's next?
-
-Now, when we have a qube at the ready (you can check it by applying the state), how do we install drivers? I want to discuss what's going on next, because at the moment of writing (November 2025) driver installation processes for fedora 41 and debian are different.
-
-[details="How do I apply a state?"]
-To apply a formula, put your state into in your salt environment folder together with jinja file and run
-`sudo qubesctl --show-output state.sls <name_of_your_state> saltenv=user`
-(substitute `<name_of_your_state>`)
-
-Salt will apply the state to all targets. When not specified, dom0 is the only target. This is what we want here, because dom0 handles creation of qubes. Add `--skip-dom0` if you want to skip dom0 and add `--targets=<targets>` to add something else.
-[/details]
-
-The plan:
-|#|fedora 41|debian 12|minimal debian 13|
-|:-:|:--|:--|:--|
-|0.|-|-|Prepare hvm template|
-|1.|Prepare standalone|Prepare standalone|Prepare standalone|
-|2.|Enable rpmfusion repositories|Add repository components|Add repository components|
-|3.|Grow `/tmp/`, because default 1G is too small to fit everything that driver building process spews out. According to my measurement, driver no longer needs more than 1G to build. I have decided to leave this step in just in case this problem still occurs with different hardware.|-|-|
-|4.|Install drivers & wait for build|Update, upgrade, install drivers|Update, upgrade, install drivers|
-|5.|Delete X config, because we don't need it where we going :sunglasses:|-|-|
-|6.|**optional** : Disable nouveau, because nvidia install script may fail to convince the system that it should use nvidia driver.|-|-|
-|7.|**optional** : Install a script for running programs in prime-accelerated environment|same|same|
-
-> :exclamation: Please be aware that both debian and rpmfusion driver package names may be different depending on what graphics card you have. This guide uses most common modern package names, but you should check it for yourself. This guide also assumes that you are starting from default qubes templates - Debian installation process changes if dracut or SecureBoot are used by the system.
->
-> :thinking: Debian has `nvidia-detect` program to tell you which drivers you need. I should be able to parse it in a state to create a truly hardware-agnostic formula.
-
-## 2-0.5. How to choose target *inside* the state file
-
-Unless you are willing to write (and call for) multiple states to perform one operation, you might be wandering how to make salt apply only first state (qube creation) to dom0, and all others - to the nvidia qube. The answer is to use jinja:
-```
-{% if grains['id'] == 'dom0' %}
-
-<!-- Dom0 stuff goes here -->
-
-{% elif grains['id'] == nvd_f41['standalone']['name'] %}
-
-<!-- nvd_f41['standalone']['name'] stuff goes here -->
-
-{% endif %}
-```
-
-That way, state will be applied to all targets (dom0, standalone qube), but jinja will edit the state file appropriately for each of them.
-
-## 2. Configure repositories
-
-[details="fedora 41"]
-Pretty self-explanatory. `{free,nonfree}` is used to enable multiple repositories at once. It is a feature of the shell, not salt or jinja.
-```yaml
-nvidia-driver--enable-repo:
-  cmd.run:
-    - name: dnf config-manager setopt rpmfusion-{free,nonfree}{,-updates}.enabled=1
-```
-[/details]
-
-[details="debian 12 / debian 13"]
-In order to configure Debian repository components, I use the [pkgrepo state](https://docs.saltproject.io/en/latest/ref/states/all/salt.states.pkgrepo.html#module-salt.states.pkgrepo).
-
-Replace `<release>` with the release you're working with. `bookworm` for debian 12, `trixie` for debian 13.
-```yaml
-nvidia-driver--enable-repo:
-  pkgrepo.managed:
-    - name: deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] https://deb.debian.org/debian <release> main contrib non-free non-free-firmware
-    - file: /etc/apt/sources.list
-```
-[/details]
-
-## 3. Extend `/tmp/`
-
-This lasts until reboot. As I already mentioned, you might not need this. On the other hand, it is non-persistent and generally harmless, so why not? 
-```yaml
-nvidia-driver--extend-tmp:
-  cmd.run:
-    - name: mount -o remount,size=2G /tmp/
-```
-
-## 4. Install drivers
-
-Here, I use `- require:` parameter to wait for other states to apply before installing the drivers. Note that it needs both state (e.g. `cmd`) and label to function.
-
-[details="fedora 41"]
-```yaml
-nvidia-driver--install:
-  pkg.installed:
+    - name: >
+        dnf config-manager setopt 
+        rpmfusion-free.enabled=1
+        rpmfusion-free-updates.enabled=1
+        rpmfusion-nonfree.enabled=1
+        rpmfusion-nonfree-updates.enabled=1
+    - require_in: 
+      - pkg: {{ grains['id'] }}-nvidia-driver--install
+  pkg.purged:
     - pkgs:
+      - grubby-dummy
+    - require_in: 
+      - pkg: {{ grains['id'] }}-nvidia-driver--install
+
+{% elif grains['os'] == 'Debian' %}
+{{ grains['id'] }}-nvidia-driver--enable-repo:
+  pkgrepo.managed:
+    - name: >
+        deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg]
+        https://deb.debian.org/debian {{ grains['oscodename'] }}
+        main contrib non-free non-free-firmware
+    - file: /etc/apt/sources.list
+    - require_in: 
+      - pkg: {{ grains['id'] }}-nvidia-driver--install
+{% endif %}
+{% endif %}
+
+{% if grains['os'] == 'Debian' or grains['os'] == 'Fedora' %}
+{{ grains['id'] }}-nvidia-driver--install:
+  pkg.installed:
+{% if pillar['nvidia-driver']['packages'] is defined %}
+    - names: {{ pillar['nvidia-driver']['packages'] }}
+{% else %}
+{% if grains['os'] == 'Debian' %}
+    - names:
+      - linux-headers-amd64
+      - firmware-misc-nonfree
+      - nvidia-driver
+      - nvidia-open-kernel-dkms
+      - nvidia-cuda-dev
+      - nvidia-cuda-toolkit
+{% elif grains['os'] == 'Fedora' %}
+    - names:
       - akmod-nvidia
       - xorg-x11-drv-nvidia-cuda
-      {# - vulkan #}
-    - require:
-      - pkgrepo: nvidia-driver--enable-repo
-      - cmd: nvidia-driver--extend-tmp
+{% endif %}
+{% endif %}
+{% if grains['os'] == 'Fedora' %}
   loop.until_no_eval:
     - name: cmd.run
     - expected: 'nvidia'
@@ -223,82 +248,99 @@ nvidia-driver--install:
     - args:
       - modinfo -F name nvidia
     - require:
-      - pkg: nvidia-driver--install
-```
-
-In case of fedora I also use `loop.until_no_eval` to wait until driver is done 
-building. It runs the state specified by `- name:` until it returns stuff from 
-`- expected`. Here it is set to try once in 20 seconds for 600 seconds. 
-`- args:` describe what to pass to the state in the `- name:`
-
-Essentially, it runs `modinfo -F name nvidia`, which translates into "What is 
-the name of the module with the name 'nvidia'?". It just returns an error until 
-module is present (i.e. done building), and then returns 'nvidia'.
-[/details]
-
-[details="debian 12 / debian 13"]
-```yaml
-nvidia-driver--install:
-  cmd.run:
-    - name: apt-get update -y && apt-get upgrade -y
-    - requires:
-      - pkgrepo: nvidia-driver--enable-repo
-  pkg.installed:
-    - names:
-      - linux-headers-amd64
-      - firmware-misc-nonfree
-      - nvidia-driver
-      - nvidia-open-kernel-dkms
-      - nvidia-cuda-dev
-      - nvidia-cuda-toolkit
-      {# - mesa-utils #}
-    - requires:
-      - cmd: nvidia-driver--install
-```
-Technically, apt only needs to update metadata before installing, but I also run upgrade because the default debian template is pretty far behind.
-
-`mesa-utils` contain mesa tools, technically we don't need them (thus the comment), but they contain `glxinfo`, which might be useful for debugging.
-[/details]
-
-## 5. Delete X config
-
-```
-nvidia-driver--remove-conf:
+      - pkg: {{ grains['id'] }}-nvidia-driver--install
   file.absent:
-    - name: {{ nvd_f41['paths']['nvidia_conf'] }}
+    - name: /usr/share/X11/xorg.conf.d/nvidia.conf
     - require:
-      - loop: nvidia-driver--assert-install
+      - loop: {{ grains['id'] }}-nvidia-driver--install
+{% endif %}
+{% endif %}
 ```
+[/details]
 
-## 6. Disable nouveau
+## `nvidia_driver.create` (`nvidia_driver/nvidia_driver/create.sls`)
 
-If you download state files, you will find it in a separate file. It is done so for two reasons:
-1. It may not be required
-1. I think vm must be restarted before this change is applied, so first run the main state and apply this after restarting the qube.
+This state clones and configures a template - potentially to apply the main 
+state (`init.sls`) to.
 
+Most of the configuration options are taken from the pillar dictionary. 
+Exceptions are :
+
+- `maxmem` - Disables memory balancing, must be set to work in hvm mode with 
+    distribution-provided kernel
+- `virt_mode` - Must be set to hvm for I/O MMU passthrough to work
+- `kernel` - Must be set to none, it makes the qube use the 
+    distribution-provided kernel
+
+The pillar dictionary contains subdictionary for all configurable states in the 
+formula - this state uses `pillar['nvidia-driver']['create']` for its values.
+
+In this version I use - and loop through - a dictionary. Using a list of 
+dictionaries would've been a better (and shorter) option. I've left it as an 
+artifact of my early tinkering with this formula, and I will eventually remove 
+it if it stays unused.
+
+This state uses `qvm.vm` state module, a wrapper around other modules, like 
+`prefs`, `features`, [etc](https://github.com/QubesOS/qubes-mgmt-salt-dom0-qvm?tab=readme-ov-file#qvm-vm). Since `qvm.vm` doesn't include `qvm.clone`, I am 
+forced to use it separately.
+
+[details="create.sls"]
+```
+{% if grains['id'] == 'dom0' %}
+{% for qube in pillar['nvidia-driver']['create'] %}
+
+{{ pillar['nvidia-driver']['create'][qube]['name'] }}-nvidia-driver--create:
+  qvm.clone:
+    - name: {{ pillar['nvidia-driver']['create'][qube]['name'] }}
+    - source: {{ pillar['nvidia-driver']['create'][qube]['source'] }}
+
+{{ pillar['nvidia-driver']['create'][qube]['name'] }}-nvidia-driver--manage:
+  qvm.vm:
+    - name: {{ pillar['nvidia-driver']['create'][qube]['name'] }}
+    - prefs:
+      - label: {{ pillar['nvidia-driver']['create'][qube]['label'] }}
+      - vcpus: {{ pillar['nvidia-driver']['create'][qube]['vcpus'] }}
+      - memory: {{ pillar['nvidia-driver']['create'][qube]['memory'] }}
+      - maxmem: 0
+      - pcidevs: {{ pillar['nvidia-driver']['create'][qube]['devices'] }}
+      - virt_mode: hvm
+      - kernel:
+    - features:
+      - set:
+        - menu-items: {{ ' '.join(pillar['nvidia-driver']['create'][qube]['menuitems']) }}
+    - require: 
+      - qvm: {{ pillar['nvidia-driver']['create'][qube]['name'] }}-nvidia-driver--create
+
+{% endfor %}
+{% endif %}
+```
+[/details]
+
+## `nvidia_driver.zero_swap` (`nvidia_driver/nvidia_driver/zero_swap.sls`)
+
+This and following states are auxiliary to the main functionality. `zero_swap` 
+specifically sets swappiness to 0, thus requesting the system to use RAM as 
+much as possible and only resorting to swap when it gets to the high watermark.
+
+[details="zero_swap.sls"]
 ```yaml
-{% if nvd_f41 is not defined %}
-{% from 'nvidia-driver/default.jinja' import nvd_f41 %}
-{% endif %}
+{# Reduce swappiness to the minimum #}
 
-{% if grains['id'] == nvd_f41['standalone']['name'] %}
+{% if grains['id'] != 'dom0' %}
 
-nvidia-driver.disable-nouveau--blacklist-nouveau:
-  file.append:
-    - name: {{ nvd_f41['paths']['grub_conf'] }}
-    - text: 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rd.driver.blacklist=nouveau"'
-
-nvidia-driver.disable-nouveau--grub-mkconfig:
-  cmd.run:
-    - name: grub2-mkconfig -o {{ nvd_f41['paths']['grub_out'] }}
-    - require:
-      - file: nvidia-driver.disable-nouveau--blacklist-nouveau
+{{ grains['id'] }}-nvidia-driver--minimize-swap:
+  sysctl.present:
+    - name: vm.swappiness
+    - value: 0
 
 {% endif %}
 ```
-Make sure to change the paths if you're not running fedora 41.
+[/details]
 
-## 7. Install prime script
+## `nvidia_driver.prime` (`nvidia_driver/nvidia_driver/prime.sls`)
+
+This state installs a simple script that runs the argument you give it in a 
+prime-accelerated environment.
 
 [Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage 
 hybrid graphics. For example, to offload render tasks to a powerful GPU despite 
@@ -307,50 +349,202 @@ this is a gaming laptop. They generally have built-in displays connected
 directly to the CPU, but use Prime in order to render things like videogames 
 effectively. NVIDIA implementation of Prime is called Optimus.
 
-"Configuration" of Optimus Prime is extremely simple. Everything you need to offload rendering tasks to your GPU after installing the drivers is to set two environment variables.
+"Configuration" of Optimus Prime is extremely simple. Everything you need to 
+offload rendering tasks to your GPU after installing the drivers is to set two 
+environment variables. Here I use a simple script for this, but there are 
+open-source projects that do it for you, such as [bumblebee](https://github.com/Bumblebee-Project/Bumblebee).
 
-Still, there's a little caveat: we generally don't want to offload *everything* to the GPU, therefore we can't just set the variables globally. In this case I'm using a simple bash script to execute commands in a correct environment:
+[details="prime.sls"]
+```yaml
+{# Install prime script (nvrun) #}
 
+{{ grains['id'] }}-nvidia-driver--prime:
+  file.managed:
+    - name: /home/user/.local/bin/nvrun
+    - source: salt://nvidia_driver/nvrun
+    - user: user
+    - group: user
+    - mode: 700
+    - makedirs: True
+```
+[/details]
+
+[details="nvrun"]
 ```bash
 #!/usr/bin/env bash
 
-set -o errexit
-set -o errtrace
-
 (
+  set -o errexit
+  set -o errtrace
+
   export __NV_PRIME_RENDER_OFFLOAD=1
   export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
   $@
 )
 ```
+[/details]
 
-This script runs all arguments given to it in a subshell (`()`) with exported environment variables. This way the program is accelerated, but the environment doesn't persist when you get the prompt back.
-
-To install it, I use the following state:
-```
-nvidia-driver--prime:
-  file.managed:
-    - name: /home/user/.local/bin/nvrun
-    - source: {{ script['nvrun'] }}
-    - user: user
-    - group: user
-    - mode: 700
-    - makedirs: True
-```
-
-It saves the script to `/home/user/.local/bin/nvrun`. This location is special 
-since it is examined as a part of the `$PATH`. Executable files stored there 
-can be executed just as any other command on your system, without specifying 
-the path to it.
-
-### Confirm that prime is working correctly
-
-Good way to confirm that our prime script is working correctly is to execute 
-`glxinfo -B` (part of the `mesa-utils`) and check it's output. When ran by 
-itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL 
+Good way to confirm that prime is working correctly is to execute `glxinfo -B` 
+(part of the `mesa-utils`) and check it's output. When ran by itself, it 
+returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL 
 renderer string`. If your prime setup works correctly, running `nvrun glxinfo 
 -B` results in your nvidia card showing up in the aforementioned field.
+
+## Configuration And Use
+### Installation
+
+You can follow [the official salt documentation](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html) to install formula in 
+an appropriate directory. Be aware of the way salt interprets `file_roots` - 
+if you want to make the formula available by adding 
+`/srv/user_formulas/nvidia_driver` to `file_roots`, then make sure that 
+`/srv/user_formulas/nvidia_driver` contains another `nvidia_driver` directory:
+
+```
+/srv/user_formulas/
+└── nvidia_driver
+    └── nvidia_driver
+        ├── create.sls
+        ├── init.sls
+        ├── nvrun
+        ├── prime.sls
+        └── zero_swap.sls
+```
+
+Otherwise, when salt scans `/srv/user_formulas/nvidia_driver` path for 
+`nvidia_driver` state, it will fail to find it because it only sees this:
+
+```
+.
+├── create.sls
+├── init.sls
+├── nvrun
+├── prime.sls
+└── zero_swap.sls
+```
+
+Technically, as far as I can tell, this form of installation is completely 
+arbitrary - any location defined in `file_roots` should work.
+
+To configure `file_roots` on QubesOS, create a configuration file in 
+`/etc/salt/minion.d/`. Since it is desired for it to be parsed last - so it 
+overrides other values - calling it something like `zz_user_formulas.conf` is 
+a good idea:
+
+```
+# /etc/salt/zz_user_formulas.conf
+file_roots:
+  base:
+    - /srv/salt
+  user:
+    - /srv/user_salt
+    - /srv/user_formulas/nvidia_driver
+
+pillar_roots:
+  base:
+    - /srv/pillar
+  user:
+    - /srv/user_pillar
+```
+
+### Configuration
+
+The formula is designed to avoid configuration if not required. The main use 
+case is driver installation itself - thus to install drivers in an already 
+existing hvm qube one simply adds the formula to the highstate and applies it:
+
+```yaml
+# /srv/salt/top.sls
+{# Install driver to debian-13-nv and set swapiness to 0 #}
+user:
+  debian-13-nv:
+  - nvidia_driver
+  - nvidia_driver.zero_swap
+
+{# Install driver to fedora-42-nv and install the prime script #}
+  fedora-42-nv:
+  - nvidia_driver
+  - nvidia_driver.prime
+```
+
+As already stated in the previous section, this state allows overriding 
+installed packages by setting package list in a pillar.
+
+Configuration of `nvidia_driver.create` is more involved. `pillar.example` 
+contains an example configuration with instructions. It can be copied as is, 
+but most values (except of maybe name, source, and menuitems) are highly 
+situational.
+
+[details="init.sls"]
+```yaml
+# vim: sw=2 syntax=yaml:
+{# 
+  This configuration is required if you are going to use template creation 
+  or desktop management states provided by the formula. Driver installation 
+  has defaults and only requires configuration if you need to select packages 
+  manually.
+#}
+nvidia-driver:
+{% if grains['id'] == 'dom0' %}
+  create:
+    {# 
+      item names can be pretty much anything you want, not just `fedora` and 
+      `debian`. It is only used as a list of values to loop through when 
+      creating and managing vms in dom0.
+    #}
+    debian:
+      name: 'debian-13-nv'
+      source: 'debian-13-xfce'
+      label: 'purple'
+      vcpus: 4
+      memory: 4000
+      devices:
+        - '01:00.0'
+        - '01:00.1'
+      menuitems: 
+        - 'qubes-run-terminal.desktop'
+    fedora:
+      name: 'fedora-42-nv'
+      source: 'fedora-42-xfce'
+      label: 'purple'
+      vcpus: 4
+      memory: 4000
+      devices:
+        - '01:00.0'
+        - '01:00.1'
+      menuitems: 
+        - 'qubes-run-terminal.desktop'
+  full_desktop:
+    - 'fedora-42-nv'
+{# DO NOT USE grains['os'] HERE, IT RETURNS dom0's OS! #}
+{% elif grains['id'] == 'debian-13-nv' %}
+  packages:
+    - linux-headers-amd64
+    - firmware-misc-nonfree
+    - nvidia-driver
+    - nvidia-open-kernel-dkms
+    - nvidia-cuda-dev
+    - nvidia-cuda-toolkit
+    {# - mesa-utils #}
+    {# - nvidia-xconfig #}
+{% elif grains['id'] == 'fedora-42-nv' %}
+  packages:
+    - akmod-nvidia
+    - xorg-x11-drv-nvidia-cuda
+    {# - glx-utils #}
+{% endif %}
+```
+[/details]
+
+## Extras
+
+Testing branch contains incomplete automation of full desktop setup - it 
+disables QubesOS gui integration without uninstalling any packages in a 
+reversable manner.
+
+It works on debian-13. Fedora-42 fails to do autologin and revert is merely 
+semi-automatic for both supported distributions - you need to disable debug 
+mode of the qube in dom0 manually.
 
 # Downloads
 ## Current version
@@ -363,13 +557,15 @@ that for some reason.
 
 # See also / References
 
-- [Nvidia Graphics Drivers - Debian Wiki](https://wiki.debian.org/NvidiaGraphicsDrivers)
-- [Howto/NVIDIA - RPM Fusion](https://rpmfusion.org/Howto/NVIDIA?highlight=%28%5CbCategoryHowto%5Cb%29)
-- [Mesa - Debian Wiki](https://wiki.debian.org/Mesa)
-- [Nvidia Optimus - Debian Wiki](https://wiki.debian.org/NVIDIA%20Optimus)
-- [PRIME - Arch Linux Wiki](https://wiki.archlinux.org/title/PRIME)
-- [Minimal Templates - QubesOS Documentation](https://doc.qubes-os.org/en/latest/user/templates/minimal-templates.html)
-- [Salt Module Index](https://docs.saltproject.io/en/latest/py-modindex.html)
-- [Jinja Documentation](https://jinja.palletsprojects.com/en/stable/templates/)
-- [Understanding Jinja (Salt Documentation)](https://docs.saltproject.io/en/latest/topics/jinja/index.html)
-- Countless posts on the [QubesOS forum](https://forum.qubes-os.org)
+1. Countless posts on the [QubesOS forum](https://forum.qubes-os.org)
+1. [Nvidia Graphics Drivers - Debian Wiki](https://wiki.debian.org/NvidiaGraphicsDrivers)
+1. [Howto/NVIDIA - RPM Fusion](https://rpmfusion.org/Howto/NVIDIA?highlight=%28%5CbCategoryHowto%5Cb%29)
+1. [Mesa - Debian Wiki](https://wiki.debian.org/Mesa)
+1. [Nvidia Optimus - Debian Wiki](https://wiki.debian.org/NVIDIA%20Optimus)
+1. [PRIME - Arch Linux Wiki](https://wiki.archlinux.org/title/PRIME)
+1. [Minimal Templates - QubesOS Documentation](https://doc.qubes-os.org/en/latest/user/templates/minimal-templates.html)
+1. [Salt Module Index](https://docs.saltproject.io/en/latest/py-modindex.html)
+1. [Jinja Documentation](https://jinja.palletsprojects.com/en/stable/templates/)
+1. [Understanding Jinja (Salt Documentation)](https://docs.saltproject.io/en/latest/topics/jinja/index.html)
+1. [Storing Static Data in the Pillar](https://docs.saltproject.io/en/latest/topics/pillar/index.html)
+1. [Salt Formulas](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html)

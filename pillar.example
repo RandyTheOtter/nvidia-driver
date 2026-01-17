@@ -46,11 +46,11 @@ nvidia-driver:
     - nvidia-open-kernel-dkms
     - nvidia-cuda-dev
     - nvidia-cuda-toolkit
-    {# - mesa-utils #}
+    {# - mesa-utils Contains glxutils for testing prime #}
     {# - nvidia-xconfig #}
 {% elif grains['id'] == 'fedora-42-nv' %}
   packages:
     - akmod-nvidia
     - xorg-x11-drv-nvidia-cuda
-    {# - glx-utils #}
+    {# - glx-utils Contains glxutils for testing prime #}
 {% endif %}

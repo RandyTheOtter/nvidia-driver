@@ -88,6 +88,10 @@ Salt formula for deployment of NVIDIA hardware-accelerated qubes with cuda suppo
     This could allow invocation of this formula without ever installing 
     anything in dom0 (with a slight drawback of not being able to use 
     nvidia_driver.create)
+- [ ] Fail if distribuion is not supported
+- [ ] Use list of dictionaries for `nvidia_driver.create` configuration
+- [ ] Do whonix as well
+- [ ] Automate driver package detection on debian
 
 future, maybe:
 - [ ] rpm repository
