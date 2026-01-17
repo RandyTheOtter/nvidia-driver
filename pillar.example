@@ -1,0 +1,56 @@
+# vim: sw=2 syntax=yaml:
+{# 
+  This configuration is required if you are going to use template creation 
+  or desktop management states provided by the formula. Driver installation 
+  has defaults and only requires configuration if you need to select packages 
+  manually.
+#}
+nvidia-driver:
+{% if grains['id'] == 'dom0' %}
+  create:
+    {# 
+      item names can be pretty much anything you want, not just `fedora` and 
+      `debian`. It is only used as a list of values to loop through when 
+      creating and managing vms in dom0.
+    #}
+    debian:
+      name: 'debian-13-nv'
+      source: 'debian-13-xfce'
+      label: 'purple'
+      vcpus: 4
+      memory: 4000
+      devices:
+        - '01:00.0'
+        - '01:00.1'
+      menuitems: 
+        - 'qubes-run-terminal.desktop'
+    fedora:
+      name: 'fedora-42-nv'
+      source: 'fedora-42-xfce'
+      label: 'purple'
+      vcpus: 4
+      memory: 4000
+      devices:
+        - '01:00.0'
+        - '01:00.1'
+      menuitems: 
+        - 'qubes-run-terminal.desktop'
+  full_desktop:
+    - 'fedora-42-nv'
+{# DO NOT USE grains['os'] HERE, IT IS dom0's OS! #}
+{% elif grains['id'] == 'debian-13-nv' %}
+  packages:
+    - linux-headers-amd64
+    - firmware-misc-nonfree
+    - nvidia-driver
+    - nvidia-open-kernel-dkms
+    - nvidia-cuda-dev
+    - nvidia-cuda-toolkit
+    {# - mesa-utils #}
+    {# - nvidia-xconfig #}
+{% elif grains['id'] == 'fedora-42-nv' %}
+  packages:
+    - akmod-nvidia
+    - xorg-x11-drv-nvidia-cuda
+    {# - glx-utils #}
+{% endif %}
