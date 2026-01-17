@@ -18,18 +18,18 @@ You probably already know that salt configurations are stored in `/srv/`.
 Here's how it may look:
 ```
 ├── user_formulas
-│   └── nvidia_driver
-│       └── nvidia_driver
-│           ├── create.sls
-│           ├── full_desktop.sls
-│           ├── init.sls
-│           ├── nvrun
-│           ├── prime.sls
-│           ├── revert_desktop.sls
-│           └── zero_swap.sls
+│   └── nvidia_driver
+│       └── nvidia_driver
+│           ├── create.sls
+│           ├── full_desktop.sls
+│           ├── init.sls
+│           ├── nvrun
+│           ├── prime.sls
+│           ├── revert_desktop.sls
+│           └── zero_swap.sls
 ├── user_pillar
-│   ├── custom.sls
-│   └── top.sls
+│   ├── custom.sls
+│   └── top.sls
 └── user_salt
     ├── test.sls
     └── top.sls
@@ -119,12 +119,12 @@ their configuration is prevented by jinja.
 ```
 .
 ├── nvidia_driver
-│   └── nvidia_driver
-│       ├── create.sls          # Create template
-│       ├── init.sls            # Install drivers
-│       ├── nvrun               # Run a program in prime environment
-│       ├── prime.sls           # Install prime environment script (nvrun)
-│       └── zero_swap.sls       # Set swapiness to 0
+│   └── nvidia_driver
+│       ├── create.sls          # Create template
+│       ├── init.sls            # Install drivers
+│       ├── nvrun               # Run a program in prime environment
+│       ├── prime.sls           # Install prime environment script (nvrun)
+│       └── zero_swap.sls       # Set swapiness to 0
 └── pillar.example              # All available configuration parameters
 ```
 
@@ -395,11 +395,11 @@ if you want to make the formula available by adding
 /srv/user_formulas/
 └── nvidia_driver
     └── nvidia_driver
-        ├── create.sls
-        ├── init.sls
-        ├── nvrun
-        ├── prime.sls
-        └── zero_swap.sls
+        ├── create.sls
+        ├── init.sls
+        ├── nvrun
+        ├── prime.sls
+        └── zero_swap.sls
 ```
 
 Otherwise, when salt scans `/srv/user_formulas/nvidia_driver` path for 
@@ -529,6 +529,15 @@ nvidia-driver:
 {% endif %}
 ```
 [/details]
+
+Once configured, apply the state (substitute $VARIABLES):
+```console
+# qubesctl --targets $YOUR_TARGETS state.highstate
+# # or
+# qubesctl --targets $YOUR_TARGETS state.highstate
+# # or even
+# qubesctl --skip-dom0 --targets $YOUR_TARGETS state.sls nvidia_driver saltenv=$SALTENV
+```
 
 ### Other Examples
 
