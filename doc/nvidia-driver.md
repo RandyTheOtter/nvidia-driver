@@ -475,7 +475,7 @@ contains an example configuration with instructions. It can be copied as is,
 but most values (except of maybe name, source, and menuitems) are highly 
 situational.
 
-[details="init.sls"]
+[details="pillar.example"]
 ```yaml
 # vim: sw=2 syntax=yaml:
 {# 
@@ -535,6 +535,70 @@ nvidia-driver:
 {% endif %}
 ```
 [/details]
+
+### Other Examples
+
+Create qube, install driver and prime script, configure swappiness:
+
+Top file:
+```
+# /srv/user_salt/top.sls
+user:
+  'dom0':
+    - nvidia_driver.create
+
+  grinch:
+    - nvidia_driver
+    - nvidia_driver.zero_swap
+    - nvidia_driver.prime
+```
+
+Pillar top:
+```
+# /srv/user_pillar/top.sls
+user:
+  dom0:
+    - nvd
+
+  grinch:
+    - nvd
+```
+
+The pillar:
+```
+# /srv/user_pillar/nvd.sls
+nvidia-driver:
+{% if grains['id'] == 'dom0' %}
+  create:
+    screwchristmas:
+      name: 'grinch'
+      source: 'debian-13-xfce'
+      label: 'green'
+      vcpus: 48
+      memory: 128000
+      devices:
+        - '01:00.0'
+        - '01:00.1'
+        - '02:00.0'
+        - '02:00.1'
+        - '03:00.0'
+        - '03:00.1'
+        - '04:00.0'
+        - '04:00.1'
+      menuitems: 
+        - 'steal_christmas.desktop'
+	- 'kill_santa.desktop'
+{% elif grains['id'] == 'grinch' %}
+  packages:
+    - linux-headers-amd64
+    - firmware-misc-nonfree
+    - nvidia-driver
+    - nvidia-open-kernel-dkms
+    - nvidia-cuda-dev
+    - nvidia-cuda-toolkit
+    - mesa-utils
+{% endif %}
+```
 
 ## Extras
 
