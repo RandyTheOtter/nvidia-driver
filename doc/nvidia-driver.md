@@ -166,7 +166,7 @@ Unless you are willing to write (and call for) multiple states to perform one op
 {% endif %}
 ```
 
-That way, state will be applied to all targets (dom0, prefs.standalone.name), but jinja will edit the state file appropriately for each of them.
+That way, state will be applied to all targets (dom0, standalone qube), but jinja will edit the state file appropriately for each of them.
 
 ## 2. Configure repositories
 
@@ -223,11 +223,17 @@ nvidia-driver--install:
     - args:
       - modinfo -F name nvidia
     - require:
-      - cmd: nvidia-driver--install
+      - pkg: nvidia-driver--install
 ```
 
-In case of fedora I also use `loop.until_no_eval` to wait until driver is done building. It runs the state specified by `- name:` until it returns stuff from `- expected`. Here it is set to try once in 20 seconds for 600 seconds. `- args:` describe what to pass to the state in the `- name:`
-Essentially, it runs `modinfo -F name nvidia`, which translates into "What is the name of the module with the name 'nvidia'?". It just returns an error until module is present (i.e. done building), and then returns 'nvidia'.
+In case of fedora I also use `loop.until_no_eval` to wait until driver is done 
+building. It runs the state specified by `- name:` until it returns stuff from 
+`- expected`. Here it is set to try once in 20 seconds for 600 seconds. 
+`- args:` describe what to pass to the state in the `- name:`
+
+Essentially, it runs `modinfo -F name nvidia`, which translates into "What is 
+the name of the module with the name 'nvidia'?". It just returns an error until 
+module is present (i.e. done building), and then returns 'nvidia'.
 [/details]
 
 [details="debian 12 / debian 13"]
@@ -294,7 +300,12 @@ Make sure to change the paths if you're not running fedora 41.
 
 ## 7. Install prime script
 
-[Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage hybrid graphics. For example, to offload render tasks to a powerful GPU despite it not having the monitor connected to it directly. Good real-world example of this is a gaming laptop. They generally have built-in displays connected directly to the CPU, but use Prime in order to render things like videogames effectively. NVIDIA implementation of Prime is called Optimus.
+[Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage 
+hybrid graphics. For example, to offload render tasks to a powerful GPU despite 
+it not having the monitor connected to it directly. Good real-world example of 
+this is a gaming laptop. They generally have built-in displays connected 
+directly to the CPU, but use Prime in order to render things like videogames 
+effectively. NVIDIA implementation of Prime is called Optimus.
 
 "Configuration" of Optimus Prime is extremely simple. Everything you need to offload rendering tasks to your GPU after installing the drivers is to set two environment variables.
 
@@ -328,11 +339,18 @@ nvidia-driver--prime:
     - makedirs: True
 ```
 
-It saves the script to `/home/user/.local/bin/nvrun`. This location is special since it is examined as a part of the $PATH. Executable files stored there can be ran just as any other command on your system, without specifying the path to it.
+It saves the script to `/home/user/.local/bin/nvrun`. This location is special 
+since it is examined as a part of the `$PATH`. Executable files stored there 
+can be executed just as any other command on your system, without specifying 
+the path to it.
 
 ### Confirm that prime is working correctly
 
-Good way to confirm that our prime script is working correctly is to execute `glxinfo -B` (part of the `mesa-utils`) and check it's output. When ran by itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL renderer string`. If your prime setup works correctly, running `nvrun glxinfo -B` results in your nvidia card showing up in the aforementioned field.
+Good way to confirm that our prime script is working correctly is to execute 
+`glxinfo -B` (part of the `mesa-utils`) and check it's output. When ran by 
+itself, it returns something like `llvmpipe (LLVM <version> ...)` in `OpenGL 
+renderer string`. If your prime setup works correctly, running `nvrun glxinfo 
+-B` results in your nvidia card showing up in the aforementioned field.
 
 # Downloads
 ## Current version
@@ -340,7 +358,8 @@ Good way to confirm that our prime script is working correctly is to execute `gl
 - [github](https://github.com/RandyTheOtter/nvidia-driver/tree/main)
 - [codeberg](https://codeberg.org/otter2/nvidia-driver)
 
-Contributions, improvements and fixes are welcome! I call it GPL-3 if you need that for some reason.
+Contributions, improvements and fixes are welcome! I call it GPL-3 if you need 
+that for some reason.
 
 # See also / References
 
