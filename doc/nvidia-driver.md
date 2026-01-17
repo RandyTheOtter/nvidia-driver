@@ -44,8 +44,8 @@ has pretty specific functionality. For example, state module [`pkgrepo`](https:/
 handles repositories of package managers like `apt` and `dnf`.
 
 > One thing to note here is that state module isn't the only kind of module. 
-> There are [a lot](https://docs.saltproject.io/en/latest/py-modindex.html) of 
-> them, and they can do various things, but here we only need the state kind.
+> There are [a lot](https://docs.saltproject.io/en/latest/py-modindex.html) of them, and they can do various things, but here we only need 
+> the state kind.
 
 `top.sls` inside `user_pillar` is a **pillar top file**. It is similar to a 
 salt top file, but instead of describing which states must be applied to 
@@ -53,7 +53,7 @@ what minions, it describes which **pillars** are available to the minions.
 Pillar is essentially a form of data storage that might contain configuration 
 variables, secrets, or any other data.
 
-People famimilar with jinja might be wondering what is the difference between 
+People familiar with jinja might be wondering what is the difference between 
 storing data in jinja compared to a pillar. The answer is simple - jinja 
 must be `include`d or otherwise imported to become available. Pillar data is 
 always available no matter what state is being applied, and allows centralized 
@@ -66,7 +66,7 @@ item.
 
 [**Formula**](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html) is nothing more than a state. The main difference between 
 formulas and conventional states is that formulas are often designed to be 
-self-sufficient and do a specific task with minimal configuration requred.
+self-sufficient and do somewhat specific set of tasks with minimal configuration required.
 Think of them kind of like python modules or vim plugins - just a piece of 
 code you can include into your environment. You totally can edit their logic or 
 write your own version to solve the same problem. 
@@ -75,7 +75,7 @@ write your own version to solve the same problem.
 store state for situations when you want to keep multiple files (including 
 other states) nicely organized. When a state directory is referenced, salt 
 evaluates `init.sls` state file inside. State files may or may not be included 
-from `init.sls` or other state files.
+from `init.sls` or other state files. This pattern can be used with pillars as well.
 
 Instructions in a state file come as [state declarations](https://docs.saltproject.io/en/latest/topics/tutorials/states_pt1.html#create-an-sls-file). Each state 
 declaration invokes a single state module. States declarations behave like 
@@ -85,7 +85,7 @@ order of execution. Unless you clearly define the order using arguments like
 `require`, `require_in`, and `order`, you should not expect states to execute 
 in any particular sequence.
 
-In addition to state declarations, you notice jinja instructions. [Jinja](https://palletsprojects.com/projects/jinja/) 
+In addition to state declarations in yaml, you will see jinja instructions. [Jinja](https://palletsprojects.com/projects/jinja/) 
 is a templating engine. What it means is that it helps you to generalize your 
 state files by adding variables, conditions and other cool features. You can 
 easily recognize jinja by fancy brackets: `{{ }}`, `{% %}`, `{# #}`.
@@ -131,7 +131,7 @@ their configuration is prevented by jinja.
 I leave the installation overwiev from the previous version here just in case it
 will be useful for somebody:
 
-| #   | fedora 41                                                                                | debian 12                        | minimal debian 13                |
+| #   | fedora 42                                                                                | debian 12                        | minimal debian 13                |
 | :-: | :--------------------------------------------------------------------------------------- | :------------------------------- | :------------------------------- |
 | 0.  | -                                                                                        | -                                | Prepare hvm template             |
 | 1.  | Prepare standalone                                                                       | Prepare standalone               | Prepare standalone               |
@@ -145,12 +145,12 @@ will be useful for somebody:
 ## `nvidia_driver` (`nvidia_driver/nvidia_driver/init.sls`)
 
 This state configures package manager repositories and installs necessary 
-packages. Jinja is used to base configuration on the distribution. If you want 
+packages. Jinja is used to select configuration based on the distribution. If you want 
 similar features in your project - `qubesctl grains.items` lists grains of a 
 minion.
 
 Just as in previous versions, fedora installation is problematic - dnf doesn't 
-work well with `pkgrepo.managed` and the conflict with grubby-dummy
+work well with `pkgrepo.managed` and the conflict with `grubby-dummy`
 is still present.
 
 [Folded block scalar](https://yaml.org/spec/1.2.2/#65-line-folding) (`>`) is used to improve readability of long values. 
@@ -161,26 +161,21 @@ careful if you want to use it, it uses indentation to tell when block ends.
 installation state depending on what repository handling mechanism is used.
 
 Installation state itself includes a lot of jinja to cram three package list 
-variants and additional states required by fedora under a single ID. Package 
-list provided by pillar is prioritized over most likely package configurations 
-based on the distribution.
+variants and additional states required by fedora under a single ID.
 
-Jinja is also used to avoid touching minions and distributions this formula 
+Jinja is also used to avoid minions and distributions this formula 
 isn't designed for.
 
 It doesn't check for specific distribution version - metapackages are used
-in hope that their names won't change - if specific package or older version is 
-needed, the following pillar data will override the defauls:
+in hopes that their names won't change - if specific package or older version is 
+needed, the following pillar data structure set by user can override the defauls:
 
 ```yaml
 nvidia_driver:
   packages:
     - package1
-    - package1
+    - package2
 ```
-
-All pillar data for this formula is stored in a single dictionary to prevent 
-namespace conflicts.
 
 [details="init.sls"]
 ```yaml
@@ -268,7 +263,7 @@ Exceptions are :
 - `kernel` - Must be set to none, it makes the qube use the 
     distribution-provided kernel
 
-The pillar dictionary contains subdictionary for all configurable states in the 
+The pillar dictionary contains sub-dictionary for all configurable states in the 
 formula - this state uses `pillar['nvidia-driver']['create']` for its values.
 
 In this version I use - and loop through - a dictionary. Using a list of 
@@ -281,7 +276,7 @@ This state uses `qvm.vm` state module, a wrapper around other modules, like
 forced to use it separately.
 
 [details="create.sls"]
-```
+```yaml
 {% if grains['id'] == 'dom0' %}
 {% for qube in pillar['nvidia-driver']['create'] %}
 
@@ -338,17 +333,17 @@ much as possible and only resorting to swap when it gets to the high watermark.
 This state installs a simple script that runs the argument you give it in a 
 prime-accelerated environment.
 
-[Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage 
-hybrid graphics. For example, to offload render tasks to a powerful GPU despite 
-it not having the monitor connected to it directly. Good real-world example of 
-this is a gaming laptop. They generally have built-in displays connected 
-directly to the CPU, but use Prime in order to render things like videogames 
-effectively. NVIDIA implementation of Prime is called Optimus.
+[Prime](https://wiki.archlinux.org/title/PRIME) is a technology used to manage hybrid graphics. For example, 
+to offload render tasks to a powerful GPU despite it not having a monitor 
+connected to it directly. Good real-world example of this is a gaming laptop. 
+They generally have built-in displays connected directly to the CPU, but use 
+Prime in order to render things like videogames effectively. NVIDIA implementation 
+of Prime is called Optimus.
 
-"Configuration" of Optimus Prime is extremely simple. Everything you need to 
+Configuration of Optimus Prime is extremely simple. Everything you need to 
 offload rendering tasks to your GPU after installing the drivers is to set two 
 environment variables. Here I use a simple script for this, but there are 
-open-source projects that do it for you, such as [bumblebee](https://github.com/Bumblebee-Project/Bumblebee).
+open-source projects that do it for you, such as [Bumblebee](https://github.com/Bumblebee-Project/Bumblebee).
 
 [details="prime.sls"]
 ```yaml
@@ -470,6 +465,9 @@ Configuration of `nvidia_driver.create` is more involved. `pillar.example`
 contains an example configuration with instructions. It can be copied as is, 
 but most values (except of maybe name, source, and menuitems) are highly 
 situational.
+
+All pillar data for this formula is stored in a single dictionary to prevent 
+namespace conflicts.
 
 [details="pillar.example"]
 ```yaml
