@@ -1,7 +1,5 @@
-
 This article aims to explore and give a practical example of leveraging 
-SaltStack to automate [NVIDIA GPU passthrough into Linux HVMs for CUDA applications - Qubes OS forum](https://forum.qubes-os.org/t/nvidia-gpu-passthrough-into
-1.linux-hvms-for-cuda-applications/9515/1). Current iteration of the state have 
+SaltStack to automate [NVIDIA GPU passthrough into Linux HVMs for CUDA applications - Qubes OS forum](https://forum.qubes-os.org/t/nvidia-gpu-passthrough-into-linux-hvms-for-cuda-applications/9515/1). Current iteration of the state have 
 grown into a canonical [salt formula](https://docs.saltproject.io/en/latest/topics/development/conventions/formulas.html), thus the article also serves as a thorough 
 documentation to it.
 
@@ -9,9 +7,7 @@ This guide assumes that you're done fiddling with your IOMMU groups and have
 modified grub parameters to allow passthrough.
 
 In addition to that, if you haven't set up salt environment yet, complete step 
-1.1 as described in [this guide](https://forum.qubes-os.org/t/qubes-salt-
-beginners-guide/20126#p-90611-h-11-creating-personal-state-configuration-
-directories-3) to get ready.
+1.1 as described in [this guide](https://forum.qubes-os.org/t/qubes-salt-beginners-guide/20126#p-90611-h-11-creating-personal-state-configuration-directories-3) to get ready.
 
 # The basics
 
