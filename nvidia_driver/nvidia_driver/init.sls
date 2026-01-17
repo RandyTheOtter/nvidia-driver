@@ -1,13 +1,11 @@
 {# 
-  This salt formula sets up a hardware-assisted TemplateVM with installed 
-  nvidia dGPU drivers on a Qubes OS system.
+  This salt formula installs nvidia dGPU drivers on a qube.
   
-  For configuration example see pillar.example. You at least need to set 
-  PCIe devices you want.
+  For configuration example see pillar.example.
 
-  If you want to configure multiple VMs to operate the same device, use 
-  `--max-concurrency 1` when executing `qubesctl` - that way the state will be 
-  applied sequentially and vms won't "fight" for the same device.
+  If you want multiple VMs to operate same devices, use `--max-concurrency 1` 
+  when executing `qubesctl` - that way the state will be applied sequentially 
+  and vms won't "fight" for the same device.
 #}
 
 {% if grains['id'] != 'dom0' %}
