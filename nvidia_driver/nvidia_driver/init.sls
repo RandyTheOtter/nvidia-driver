@@ -40,13 +40,40 @@
     - require_in: 
       - pkg: {{ grains['id'] }}-nvidia-driver--install
 
+{% elif grains['os'] == 'Debian' %}
+{{ grains['id'] }}-nvidia-driver--enable-repo:
+  pkgrepo.managed:
+    - name: >
+        deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg]
+        https://deb.debian.org/debian {{ grains['oscodename'] }}
+        main contrib non-free non-free-firmware
+    - file: /etc/apt/sources.list
+    - require_in: 
+      - pkg: {{ grains['id'] }}-nvidia-driver--install
+{% endif %}
+{% endif %}
+
+{% if grains['os'] == 'Debian' or grains['os'] == 'Fedora' %}
 {{ grains['id'] }}-nvidia-driver--install:
   pkg.installed:
+{% if pillar['nvidia-driver']['packages'] is defined %}
+    - names: {{ pillar['nvidia-driver']['packages'] }}
+{% else %}
+{% if grains['os'] == 'Debian' %}
+    - names:
+      - linux-headers-amd64
+      - firmware-misc-nonfree
+      - nvidia-driver
+      - nvidia-open-kernel-dkms
+      - nvidia-cuda-dev
+      - nvidia-cuda-toolkit
+{% elif grains['os'] == 'Fedora' %}
     - names:
       - akmod-nvidia
       - xorg-x11-drv-nvidia-cuda
-      {# - glx-utils #}
-    - refresh: True
+{% endif %}
+{% endif %}
+{% if grains['os'] == 'Fedora' %}
   loop.until_no_eval:
     - name: cmd.run
     - expected: 'nvidia'
@@ -60,29 +87,5 @@
     - name: /usr/share/X11/xorg.conf.d/nvidia.conf
     - require:
       - loop: {{ grains['id'] }}-nvidia-driver--install
-
-{% elif grains['os'] == 'Debian' %}
-{{ grains['id'] }}-nvidia-driver--enable-repo:
-  pkgrepo.managed:
-    - name: >
-        deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg]
-        https://deb.debian.org/debian {{ grains['oscodename'] }}
-        main contrib non-free non-free-firmware
-    - file: /etc/apt/sources.list
-    - require_in: 
-      - pkg: {{ grains['id'] }}-nvidia-driver--install
-
-{{ grains['id'] }}-nvidia-driver--install:
-  pkg.installed:
-    - names:
-      - linux-headers-amd64
-      - firmware-misc-nonfree
-      - nvidia-driver
-      - nvidia-open-kernel-dkms
-      - nvidia-cuda-dev
-      - nvidia-cuda-toolkit
-      {# - mesa-utils #}
-      {# - nvidia-xconfig #}
-    - refresh: True
 {% endif %}
 {% endif %}
