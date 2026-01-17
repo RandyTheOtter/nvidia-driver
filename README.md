@@ -1,38 +1,95 @@
+<!-- vim: sw=4 syntax=markdown:
+-->
 # nvidia-driver
 
-Salt formulas for deployment of NVIDIA hardware-accelerated qubes with cuda support
+Salt formula for deployment of NVIDIA hardware-accelerated qubes with cuda support
 
 ## Contents
 
-- `nvidia-driver/`:
-  - `default.jinja` - configuration variables
-  - `d12.sls` - deploy debian-12 qube
-  - `d13m` - states for deployment of debian-13 qubes
-    - `template.sls` - prepare hvm-capable minimal template
-    - `standalone.sls` - create a standalone based on an hvm-capable template. Will work with `debian-13-xfce` as well as with `debian-13-minimal-hvm` created by `template.sls`
-  - `f41.sls` - deploy fedora-41 qube
-  - `f41-disable-nouveau.sls` - disables nouveau (use if nvidia driver isn't prioritized upon installation and reboot)
-  - `any-minimize-swap.sls` - set swappiness to 0
-  - `any-prime.sls` - install prime script into `.local/bin/` of the `user`. Execute `nvrun myprogram` to accelerate `myprogram` with prime.
+```
+.
+├── doc
+│   └── nvidia-driver.md        # Guide to this formula 
+├── LICENSE
+├── nvidia_driver
+│   └── nvidia_driver
+│       ├── create.sls          # Create template
+│       ├── init.sls            # Install drivers
+│       ├── nvrun               # Run a program in prime environment
+│       ├── prime.sls           # Install prime environment script (nvrun)
+│       └── zero_swap.sls       # Set swapiness to 0
+├── pillar.example              # All available configuration parameters
+└── README.md
+```
 
 ## How to use
 
 1. Upload `nvidia-driver` to your salt environment
-2. Review config in `default.jinja`
-3. Use states:
-  - Directly: `sudo qubesctl --show-output --targets <target_name> state.sls nvidia-driver.f41 saltenv=user`
-  - In another formula `{% include 'nvidia-driver/f41.sls' %}`
 
-These states also support providing your own variables (as opposed to the ones in `default.jinja`). If jinja sees appropriately named variable in the context it won't import the same variable from `default.jinja`.
+    Any location defined in `file_roots` will work. Usually formulas are 
+    installed in `/srv/formulas/`
+
+    For example, if you install the formula like this: 
+
+    ```
+    /srv/formulas/
+    └── nvidia_driver
+        └── nvidia_driver
+            ├── create.sls
+            ├── init.sls
+            ├── nvrun
+            ├── prime.sls
+            └── zero_swap.sls
+    ```
+
+    You should set the following `file_roots`:
+
+    ```yaml
+    file_roots:
+      base:
+        - /srv/salt
+        - /srv/formulas/nvidia_driver
+    ```
+
+2. Configure top file
+
+    This example assumes that you handle vm creation and configuration in dom0 
+    separately, see `pillar.example` if you want `nvidia_driver.create` to make 
+    templates for you.
+    
+    ```yaml
+    # /srv/salt/top.sls
+    base:
+      debian-13-nv:
+        - nvidia_driver
+        - nvidia_driver.zero_swap
+
+      fedora-42-nv:
+        - nvidia_driver
+        - nvidia_driver.prime
+    ```
+
+3. Apply the state
+
+    Don't forget to add `--max-concurrency=1` if your vms operate the same
+    devices to prevent them from "fighting" over it.
+
+    ```console
+    # qubesctl --targets debian-13-nv,fedora-42-nv state.highstate
+    ```
 
 ## Current tasks
 
 - [x] optimus prime
 - [x] debian 13
-- [ ] fedora 42
-- [ ] generalize the installation of drivers (pkg.installed and pkgrepo.managed)
+- [x] fedora 42
+- [x] generalize installation of drivers
+- [ ] document usage via gitfs
+    This could allow invocation of this formula without ever installing 
+    anything in dom0 (with a slight drawback of not being able to use 
+    nvidia_driver.create)
 
-far future:
+future, maybe:
 - [ ] rpm repository
 
 ## Mirrors
