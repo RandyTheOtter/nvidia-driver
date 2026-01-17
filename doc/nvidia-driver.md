@@ -583,7 +583,7 @@ nvidia-driver:
         - '04:00.1'
       menuitems: 
         - 'steal_christmas.desktop'
-	- 'kill_santa.desktop'
+	    - 'kill_santa.desktop'
 {% elif grains['id'] == 'grinch' %}
   packages:
     - linux-headers-amd64
@@ -600,7 +600,7 @@ nvidia-driver:
 
 Testing branch contains incomplete automation of full desktop setup - it 
 disables QubesOS gui integration without uninstalling any packages in a 
-reversable manner.
+reversible manner.
 
 It works on debian-13. Fedora-42 fails to do autologin and revert is merely 
 semi-automatic for both supported distributions - you need to disable debug 
