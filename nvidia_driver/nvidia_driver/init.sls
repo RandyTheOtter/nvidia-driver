@@ -1,11 +1,11 @@
 {# 
-  This salt formula installs nvidia dGPU drivers on a qube.
-  
-  For configuration example see pillar.example.
+  This salt formula installs nvidia dGPU drivers on a Qubes OS VM (qube).
 
-  If you want multiple VMs to operate same devices, use `--max-concurrency 1` 
-  when executing `qubesctl` - that way the state will be applied sequentially 
-  and vms won't "fight" for the same device.
+  For configuration see documentation and pillar.example
+
+  If you want to configure multiple VMs to operate the same device, use 
+  `--max-concurrency 1` when executing `qubesctl` - that way the state will be 
+  applied sequentially and vms won't "fight" for the same device.
 #}
 
 {% if grains['id'] != 'dom0' %}
@@ -37,6 +37,11 @@
       - grubby-dummy
     - require_in: 
       - pkg: {{ grains['id'] }}-nvidia-driver--install
+  file.append:
+    - name: /etc/dnf/dnf.conf
+    - text: exclude=grubby-dummy
+    - require:
+      - pkg: {{ grains['id'] }}-nvidia-driver--prepare
 
 {% elif grains['os'] == 'Debian' %}
 {{ grains['id'] }}-nvidia-driver--enable-repo:
@@ -54,10 +59,12 @@
 {% if grains['os'] == 'Debian' or grains['os'] == 'Fedora' %}
 {{ grains['id'] }}-nvidia-driver--install:
   pkg.installed:
-{% if pillar['nvidia-driver']['packages'] is defined %}
+{%
+  if  pillar['nvidia-driver']             is defined 
+  and pillar['nvidia-driver']['packages'] is defined 
+%}
     - names: {{ pillar['nvidia-driver']['packages'] }}
-{% else %}
-{% if grains['os'] == 'Debian' %}
+{% elif grains['os'] == 'Debian' %}
     - names:
       - linux-headers-amd64
       - firmware-misc-nonfree
@@ -70,7 +77,6 @@
       - akmod-nvidia
       - xorg-x11-drv-nvidia-cuda
 {% endif %}
-{% endif %}
 {% if grains['os'] == 'Fedora' %}
   loop.until_no_eval:
     - name: cmd.run
@@ -81,6 +87,8 @@
       - modinfo -F name nvidia
     - require:
       - pkg: {{ grains['id'] }}-nvidia-driver--install
+    - require_in:
+      - file: {{ grains['id'] }}-nvidia-driver--blacklist-nouveau
   file.absent:
     - name: /usr/share/X11/xorg.conf.d/nvidia.conf
     - require:
@@ -88,5 +96,6 @@
 
 include:
   - nvidia_driver.disable_nouveau
+
 {% endif %}
 {% endif %}
