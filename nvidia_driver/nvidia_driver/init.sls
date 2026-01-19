@@ -85,5 +85,8 @@
     - name: /usr/share/X11/xorg.conf.d/nvidia.conf
     - require:
       - loop: {{ grains['id'] }}-nvidia-driver--install
+
+include:
+  - nvidia_driver.disable_nouveau
 {% endif %}
 {% endif %}
