@@ -534,7 +534,7 @@ Once configured, apply the state (substitute $VARIABLES):
 ```console
 # qubesctl --targets $YOUR_TARGETS state.highstate
 # # or
-# qubesctl --targets $YOUR_TARGETS state.highstate
+# qubesctl --targets $YOUR_TARGETS state.apply
 # # or even
 # qubesctl --skip-dom0 --targets $YOUR_TARGETS state.sls nvidia_driver saltenv=$SALTENV
 ```
