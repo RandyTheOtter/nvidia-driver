@@ -150,8 +150,8 @@ similar features in your project - `qubesctl grains.items` lists grains of a
 minion.
 
 Just as in previous versions, fedora installation is problematic - dnf doesn't 
-work well with `pkgrepo.managed` and the conflict with `grubby-dummy`
-is still present.
+work well with `pkgrepo.managed`, the conflict with `grubby-dummy`
+is still present, and nvidia and nouveau drivers race each other to load.
 
 [Folded block scalar](https://yaml.org/spec/1.2.2/#65-line-folding) (`>`) is used to improve readability of long values. 
 It replaces newlines with whitespaces and trims trailing whitespaces. Be 
@@ -177,6 +177,11 @@ nvidia_driver:
     - package2
 ```
 
+Race with nouveau is solved by blacklisting nouveau kernel module. It simply 
+appends another kernel parameter to the existing configuration if this line 
+isn't present there yet. If grub configuration in `/etc/default` is changed 
+by this state, it also regenerates grub configuration in `/boot/grub2/`
+
 [details="init.sls"]
 ```yaml
 {% if grains['id'] != 'dom0' %}
@@ -196,6 +201,11 @@ nvidia_driver:
       - grubby-dummy
     - require_in: 
       - pkg: {{ grains['id'] }}-nvidia-driver--install
+  file.append:
+    - name: /etc/dnf/dnf.conf
+    - text: exclude=grubby-dummy
+    - require:
+      - pkg: {{ grains['id'] }}-nvidia-driver--prepare
 
 {% elif grains['os'] == 'Debian' %}
 {{ grains['id'] }}-nvidia-driver--enable-repo:
@@ -213,10 +223,12 @@ nvidia_driver:
 {% if grains['os'] == 'Debian' or grains['os'] == 'Fedora' %}
 {{ grains['id'] }}-nvidia-driver--install:
   pkg.installed:
-{% if pillar['nvidia-driver']['packages'] is defined %}
+{%
+  if  pillar['nvidia-driver']             is defined 
+  and pillar['nvidia-driver']['packages'] is defined 
+%}
     - names: {{ pillar['nvidia-driver']['packages'] }}
-{% else %}
-{% if grains['os'] == 'Debian' %}
+{% elif grains['os'] == 'Debian' %}
     - names:
       - linux-headers-amd64
       - firmware-misc-nonfree
@@ -229,7 +241,6 @@ nvidia_driver:
       - akmod-nvidia
       - xorg-x11-drv-nvidia-cuda
 {% endif %}
-{% endif %}
 {% if grains['os'] == 'Fedora' %}
   loop.until_no_eval:
     - name: cmd.run
@@ -240,14 +251,38 @@ nvidia_driver:
       - modinfo -F name nvidia
     - require:
       - pkg: {{ grains['id'] }}-nvidia-driver--install
+    - require_in:
+      - file: {{ grains['id'] }}-nvidia-driver--blacklist-nouveau
   file.absent:
     - name: /usr/share/X11/xorg.conf.d/nvidia.conf
     - require:
       - loop: {{ grains['id'] }}-nvidia-driver--install
+
+include:
+  - nvidia_driver.disable_nouveau
+
 {% endif %}
 {% endif %}
 ```
 [/details]
+
+[details="disable_nouveau.sls"]
+```yaml
+{% if grains['id'] != 'dom0' %}
+
+{{ grains['id'] }}-nvidia-driver--blacklist-nouveau:
+  file.append:
+    - name: /etc/default/grub
+    - text: 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rd.driver.blacklist=nouveau"'
+  cmd.run:
+    - name: grub2-mkconfig -o /boot/grub2/grub.cfg
+    - onchanges:
+      - file: {{ grains['id'] }}-nvidia-driver--blacklist-nouveau
+
+{% endif %}
+```
+[/details]
+
 
 ## `nvidia_driver.create` (`nvidia_driver/nvidia_driver/create.sls`)
 
