@@ -128,7 +128,7 @@ their configuration is prevented by jinja.
 └── pillar.example              # All available configuration parameters
 ```
 
-I leave the installation overwiev from the previous version here just in case it
+I leave the installation overview from the previous version here just in case it
 will be useful for somebody:
 
 | #   | fedora 42                                                                                | debian 12                        | minimal debian 13                |
@@ -636,6 +636,14 @@ nvidia-driver:
     - nvidia-cuda-toolkit
     - mesa-utils
 {% endif %}
+```
+
+## Troubleshooting
+
+Sometimes updates break fedora templates. If you encounter `Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)` simply boot with QubesOS-provided kernel and regenerate grub config:
+
+```console
+# grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
 
 ## Extras
