@@ -7,28 +7,40 @@
 {% if grains['id'] == 'dom0' %}
 {% for qube in pillar['nvidia-driver']['full_desktop'] %}
 
+{# TODO: make it add to already existing kernel options #}
 {{ qube }}--enable-debug:
-  qvm.prefs:
+  qvm.vm:
     - name: {{ qube }}
-    - debug: True
+  {% if grains['os'] == 'Fedora' %}
+    - prefs:
+      - virt_mode: hvm
+      - memory: 1000
+      - kernelopts: "systemd.unit=graphical.target"
+    - features:
+      - set:
+        - gui-emulated: 1
+        - no-nomodeset: 1
+    - service:
+      - enable:
+        - lightdm
+  {% elif grains['os'] == 'Debian' %}
+    - prefs:
+      - virt_mode: hvm
+      - memory: 1000
+      - kernelopts: "systemd.unit=graphical.target"
+    - features:
+      - set:
+        - gui-emulated: 1
+    - service:
+      - enable:
+        - lightdm
+  {% endif %}
 
 {% endfor %}
 {% elif grains['id'] != 'dom0' %}
-
-{{ grains['id'] }}-desktop--qubes-gui-agent:
-  cmd.run:
-    - name: systemctl disable qubes-gui-agent
-
-{{ grains['id'] }}-desktop--set-target:
-  cmd.run:
-    - name: systemctl set-default graphical.target
-    - requires:
-      - cmd: desktop--qubes-gui-agent
-
 {{ grains['id'] }}-desktop--enable-autologin:
   file.replace:
     - name: /etc/lightdm/lightdm.conf
     - pattern: "#autologin-user=*\n"
     - repl: "autologin-user=user\n"
-
 {% endif %}
