@@ -17,9 +17,9 @@
       - memory: 1000
       - kernelopts: "systemd.unit=graphical.target"
     - features:
-      - set:
-        - gui-emulated: 1
-        - no-nomodeset: 1
+      - enable:
+        - gui-emulated
+        - no-nomodeset
     - service:
       - enable:
         - lightdm
@@ -29,8 +29,8 @@
       - memory: 1000
       - kernelopts: "systemd.unit=graphical.target"
     - features:
-      - set:
-        - gui-emulated: 1
+      - enable:
+        - gui-emulated
     - service:
       - enable:
         - lightdm
