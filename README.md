@@ -80,10 +80,7 @@ Salt formula for deployment of NVIDIA hardware-accelerated qubes with cuda suppo
 
 ## Current tasks
 
-- [x] optimus prime
-- [x] debian 13
-- [x] fedora 42
-- [x] generalize installation of drivers
+- [x] Test debian 14 and fedora 43
 - [ ] document usage via gitfs
     This could allow invocation of this formula without ever installing 
     anything in dom0 (with a slight drawback of not being able to use 
@@ -92,8 +89,6 @@ Salt formula for deployment of NVIDIA hardware-accelerated qubes with cuda suppo
 - [ ] Use list of dictionaries for `nvidia_driver.create` configuration
 - [ ] Do whonix as well
 - [ ] Automate driver package detection on debian
-- [x] Test debian 14 and fedora 43 (it does not work)
-- [ ] Update it to work on debian 14 and fedora 43
 
 future, maybe:
 - [ ] rpm repository
