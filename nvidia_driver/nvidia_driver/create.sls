@@ -16,7 +16,7 @@
       - maxmem: 0
       - pcidevs: {{ pillar['nvidia-driver']['create'][qube]['devices'] }}
       - virt_mode: hvm
-      - kernel:
+      - kernel: ''
     - features:
       - set:
         - menu-items: {{ ' '.join(pillar['nvidia-driver']['create'][qube]['menuitems']) }}
